@@ -1,0 +1,69 @@
+html,
+body {
+
+    width: 100%;
+
+    height: 100%;
+
+    margin: 0;
+
+    padding: 0;
+
+    overflow: hidden;
+
+    background: transparent;
+
+}
+
+
+body {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+}
+
+
+/* ========================================
+   TOTORO
+======================================== */
+
+#totoro {
+
+    width: 120px;
+
+    height: 120px;
+
+    display: block;
+
+    margin: 0;
+
+    padding: 0;
+
+    user-select: none;
+
+    -webkit-user-select: none;
+
+    -webkit-user-drag: none;
+
+    /* THIS MAKES THE ENTIRE TOTORO WINDOW DRAGGABLE */
+
+    -webkit-app-region: drag;
+
+    cursor: grab;
+
+}
+
+
+/* ========================================
+   DRAGGING CURSOR
+======================================== */
+
+#totoro:active {
+
+    cursor: grabbing;
+
+}

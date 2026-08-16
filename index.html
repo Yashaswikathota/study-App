@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Study Companion</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+<body>
+
+    <div class="timer">
+
+        <div
+            class="timer-display"
+            id="timerDisplay"
+        >
+            00:00
+        </div>
+
+
+        <div class="progress-bar">
+
+            <div
+                class="progress-fill"
+                id="progressFill"
+            ></div>
+
+        </div>
+
+
+        <div class="timer-controls">
+
+            <input
+                type="number"
+                id="timerMinutes"
+                value="25"
+                min="1"
+            >
+
+
+            <button id="startTimer">
+                Start
+            </button>
+
+
+            <button id="pauseTimer">
+                Pause
+            </button>
+
+
+            <button id="resetTimer">
+                Reset
+            </button>
+
+        </div>
+
+    </div>
+
+    <script src="renderer.js"></script>
+
+</body>
+
+</html>

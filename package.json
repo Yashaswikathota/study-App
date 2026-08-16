@@ -1,0 +1,20 @@
+{
+  "name": "study-companion",
+  "version": "1.0.0",
+  "description": "Study Companion",
+  "main": "main.js",
+  "scripts": {
+    "start": "nodemon --ext js,css,html --exec electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Yashaswika",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "nodemon": "^3.1.14"
+  },
+  "dependencies": {
+    "@rive-app/canvas": "^2.40.0",
+    "get-windows": "^9.3.0"
+  }
+}
