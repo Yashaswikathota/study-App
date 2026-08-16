@@ -47,6 +47,8 @@ let elapsedSeconds = 0;
 
 let timerInterval = null;
 
+let isPaused = false;
+
 
 // ========================================
 // UPDATE TIMER
@@ -204,17 +206,114 @@ pauseButton.addEventListener(
     "click",
     () => {
 
-        clearInterval(
-            timerInterval
+        // ========================================
+        // PAUSE
+        // ========================================
+
+        if (
+            !isPaused
+        ) {
+
+            clearInterval(
+                timerInterval
+            );
+
+            timerInterval =
+                null;
+
+            isPaused =
+                true;
+
+            pauseButton.textContent =
+                "Resume";
+
+
+            // Stop distraction monitoring
+
+            ipcRenderer.send(
+                "study-session-stop"
+            );
+
+
+            return;
+
+        }
+
+
+        // ========================================
+        // RESUME
+        // ========================================
+
+        isPaused =
+            false;
+
+        pauseButton.textContent =
+            "Pause";
+
+
+        // Start study session again
+
+        ipcRenderer.send(
+            "study-session-start"
         );
+
+
+        const totalSeconds =
+            Number(
+                timerMinutes.value
+            ) * 60;
 
 
         timerInterval =
-            null;
-        
-        ipcRenderer.send(
-            "study-session-stop"
-        );
+            setInterval(
+                () => {
+
+                    elapsedSeconds++;
+
+                    updateTimer();
+
+
+                    if (
+                        elapsedSeconds >=
+                        totalSeconds
+                    ) {
+
+                        clearInterval(
+                            timerInterval
+                        );
+
+                        timerInterval =
+                            null;
+
+
+                        isPaused =
+                            false;
+
+
+                        pauseButton.textContent =
+                            "Pause";
+
+
+                        ipcRenderer.send(
+                            "study-session-stop"
+                        );
+
+
+                        ipcRenderer.send(
+                            "character-state",
+                            "happy"
+                        );
+
+
+                        alert(
+                            "Time's up!"
+                        );
+
+                    }
+
+                },
+                1000
+            );
 
     }
 );
@@ -239,6 +338,10 @@ resetButton.addEventListener(
 
         elapsedSeconds =
             0;
+        isPaused =false;
+
+        pauseButton.textContent =
+                            "Pause";
 
 
         updateTimer();
