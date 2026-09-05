@@ -173,13 +173,20 @@ startButton.addEventListener(
                             "study-session-stop"
                         );
 
+                        console.log("================================");
+                        console.log("TIMER COMPLETED");
+                        console.log("Sending character-state: happy");
+                        console.log("Elapsed seconds:", elapsedSeconds);
+                        console.log("Total seconds:", totalSeconds);
+                        console.log("================================");    
 
                         // Happy = completed session
 
                         ipcRenderer.send(
                             "character-state",
-                            "happy"
+                            "happy"                       
                         );
+                        console.log("Happy character-state message sent.");
 
 
                         alert(
