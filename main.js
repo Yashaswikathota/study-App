@@ -5,6 +5,7 @@ const {
     ipcMain
 } = require("electron");
 
+
 const path = require("node:path");
 
 app.disableHardwareAcceleration();
@@ -275,7 +276,6 @@ async function getActiveApplication() {
 }
 
 
-
 // ========================================
 // IS THIS OUR ELECTRON APP?
 // ========================================
@@ -309,39 +309,65 @@ function isYouTube(activeWindow) {
     }
 
 
+    // ====================================
+    // CHECK URL
+    // ====================================
+
     const url =
         activeWindow.url;
 
 
-    if (!url) {
+    if (url) {
 
-        return false;
+        try {
+
+            const hostname =
+                new URL(url)
+                    .hostname
+                    .toLowerCase();
+
+
+            if (
+                hostname === "youtube.com" ||
+                hostname === "www.youtube.com" ||
+                hostname.endsWith(".youtube.com")
+            ) {
+
+                return true;
+
+            }
+
+        }
+
+        catch {
+
+            // Continue and check title
+
+        }
 
     }
 
 
-    try {
+    // ====================================
+    // CHECK WINDOW TITLE
+    // ====================================
 
-        const hostname =
-            new URL(url).hostname
-                .toLowerCase();
+    const title =
+        activeWindow.title || "";
 
 
-        return (
-            hostname === "youtube.com" ||
-            hostname === "www.youtube.com" ||
-            hostname.endsWith(
-                ".youtube.com"
-            )
-        );
+    if (
+        title
+            .toLowerCase()
+            .includes("youtube")
+    ) {
 
-    }
-
-    catch {
-
-        return false;
+        return true;
 
     }
+
+
+    return false;
 
 }
 
@@ -351,6 +377,12 @@ function isYouTube(activeWindow) {
 // ========================================
 
 function sendCharacterState(state) {
+
+    console.log(
+        "SENDING CHARACTER STATE:",
+        state
+    );
+
 
     if (
         totoroWindow &&
@@ -364,7 +396,20 @@ function sendCharacterState(state) {
 
     }
 
+    else {
+
+        console.log(
+            "CHARACTER WINDOW NOT AVAILABLE"
+        );
+
+    }
+
 }
+
+
+// ========================================
+// MONITOR STUDY SESSION
+// ========================================
 
 async function monitorStudySession() {
 
@@ -373,7 +418,9 @@ async function monitorStudySession() {
 
 
     if (!activeWindow) {
+
         return;
+
     }
 
 
@@ -426,10 +473,12 @@ async function monitorStudySession() {
         "--------------------------------"
     );
 
+
     console.log(
         "Active app:",
         appName
     );
+
 
     console.log(
         "Window:",
@@ -471,6 +520,12 @@ async function monitorStudySession() {
         );
 
 
+    console.log(
+        "IS YOUTUBE:",
+        watchingYouTube
+    );
+
+
     // ========================================
     // USER IS ON YOUTUBE
     // ========================================
@@ -486,7 +541,10 @@ async function monitorStudySession() {
             isDistracted =
                 true;
 
-            isSad = false;
+
+            isSad =
+                false;
+
 
             distractionStartTime =
                 Date.now();
@@ -497,8 +555,10 @@ async function monitorStudySession() {
             );
 
 
+            // YouTube = Confused
+
             sendCharacterState(
-                "thinking"
+                "confused"
             );
 
         }
@@ -526,21 +586,31 @@ async function monitorStudySession() {
             );
 
 
-            // 5 minutes
+            // =================================
+            // 5 MINUTES
+            // =================================
+
             if (
                 distractionSeconds >= 300 &&
                 !isSad
             ) {
 
-            isSad = true;
+                isSad =
+                    true;
 
-            sendCharacterState(
+
+                console.log(
+                    "DISTRACTION REACHED 5 MINUTES"
+                );
+
+
+                // YouTube for 5 minutes = Sad
+
+                sendCharacterState(
                     "sad"
-            );
+                );
 
-        }
-
-            
+            }
 
         }
 
@@ -564,11 +634,16 @@ async function monitorStudySession() {
         isDistracted =
             false;
 
-        isSad = false;
+
+        isSad =
+            false;
+
 
         distractionStartTime =
             null;
 
+
+        // Back to working
 
         sendCharacterState(
             "working"
@@ -577,6 +652,7 @@ async function monitorStudySession() {
     }
 
 }
+
 
 // ========================================
 // APP READY
@@ -588,8 +664,11 @@ app.whenReady().then(() => {
 
     createTotoroWindow();
 
+
     // Start monitoring immediately
+
     monitorStudySession();
+
 
     // Check every second
 
@@ -629,6 +708,12 @@ ipcMain.on(
     "character-state",
     (event, state) => {
 
+        console.log(
+            "CHARACTER STATE FROM TIMER:",
+            state
+        );
+
+
         sendCharacterState(
             state
         );
@@ -643,11 +728,27 @@ ipcMain.on(
 
 ipcMain.on(
     "study-session-start",
-    () => {
+    async () => {
 
-        if (
-            !lastNonElectronApplication
-        ) {
+        console.log(
+            "================================"
+        );
+
+
+        console.log(
+            "STARTING STUDY SESSION..."
+        );
+
+
+        // ====================================
+        // GET ACTIVE APPLICATION RIGHT NOW
+        // ====================================
+
+        const startingApplication =
+            await getActiveApplication();
+
+
+        if (!startingApplication) {
 
             console.log(
                 "Could not determine starting application."
@@ -658,12 +759,16 @@ ipcMain.on(
         }
 
 
+        // ====================================
+        // SAVE STARTING APPLICATION
+        // ====================================
+
         baselineApplication =
-            lastNonElectronApplication;
+            startingApplication;
 
 
         currentApplication =
-            lastNonElectronApplication;
+            startingApplication;
 
 
         isStudySessionActive =
@@ -672,18 +777,14 @@ ipcMain.on(
 
         isDistracted =
             false;
-        
+
+
         isSad =
             false;
 
 
         distractionStartTime =
             null;
-
-
-        console.log(
-            "================================"
-        );
 
 
         console.log(
@@ -720,6 +821,8 @@ ipcMain.on(
         );
 
 
+        // Character starts working
+
         sendCharacterState(
             "working"
         );
@@ -739,20 +842,26 @@ ipcMain.on(
         isStudySessionActive =
             false;
 
+
         baselineApplication =
             null;
+
 
         currentApplication =
             null;
 
+
         isDistracted =
             false;
-        
+
+
         isSad =
             false;
 
+
         distractionStartTime =
             null;
+
 
         console.log(
             "STUDY SESSION STOPPED"
