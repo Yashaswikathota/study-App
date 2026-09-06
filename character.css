@@ -9,6 +9,9 @@ body {
     overflow: hidden;
 
     background: transparent;
+
+    /* Make the character window draggable */
+    -webkit-app-region: drag;
 }
 
 #characterVideo {
@@ -20,4 +23,11 @@ body {
     object-fit: contain;
 
     background: transparent;
+
+    /* Character itself is the drag surface */
+    -webkit-app-region: drag;
+
+    /* Prevent accidental selection */
+    user-select: none;
+    -webkit-user-select: none;
 }

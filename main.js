@@ -905,11 +905,11 @@ ipcMain.on(
             timerWindow.show();
 
             timerWindow.webContents.send(
-            "study-subject",
+             "study-subject",
             selectedSubject
-        );
+    );
 
-    }
+}
 
 
         // ====================================
