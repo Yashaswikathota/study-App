@@ -5,8 +5,8 @@ const {
     ipcMain
 } = require("electron");
 
-
 const path = require("node:path");
+const fs = require("node:fs");
 
 app.disableHardwareAcceleration();
 
@@ -18,6 +18,16 @@ app.disableHardwareAcceleration();
 let mainWindow = null;
 let timerWindow = null;
 let totoroWindow = null;
+
+
+// ========================================
+// CHARACTER POSITION STORAGE
+// ========================================
+
+const characterPositionFile = path.join(
+    app.getPath("userData"),
+    "character-position.json"
+);
 
 
 // ========================================
@@ -49,6 +59,263 @@ let lastNonElectronApplication = null;
 
 
 // ========================================
+// CHARACTER POSITION
+// ========================================
+
+function saveCharacterPosition() {
+
+    if (
+        !totoroWindow ||
+        totoroWindow.isDestroyed()
+    ) {
+        return;
+    }
+
+    try {
+
+        const bounds =
+            totoroWindow.getBounds();
+
+        fs.writeFileSync(
+            characterPositionFile,
+            JSON.stringify({
+                x: bounds.x,
+                y: bounds.y
+            })
+        );
+
+        console.log(
+            "Character position saved:",
+            bounds.x,
+            bounds.y
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Could not save character position:",
+            error
+        );
+
+    }
+}
+
+
+// ========================================
+// LOAD CHARACTER POSITION
+// ========================================
+
+function loadCharacterPosition() {
+
+    try {
+
+        if (
+            !fs.existsSync(
+                characterPositionFile
+            )
+        ) {
+            return null;
+        }
+
+        const position =
+            JSON.parse(
+                fs.readFileSync(
+                    characterPositionFile,
+                    "utf8"
+                )
+            );
+
+        if (
+            typeof position.x !== "number" ||
+            typeof position.y !== "number"
+        ) {
+            return null;
+        }
+
+        console.log(
+            "Loaded character position:",
+            position.x,
+            position.y
+        );
+
+        return position;
+
+    } catch (error) {
+
+        console.error(
+            "Could not load character position:",
+            error
+        );
+
+        return null;
+    }
+}
+
+
+// ========================================
+// KEEP CHARACTER INSIDE WORK AREA
+// ========================================
+
+function keepCharacterInsideWorkArea() {
+
+    if (
+        !totoroWindow ||
+        totoroWindow.isDestroyed()
+    ) {
+        return;
+    }
+
+    const bounds =
+        totoroWindow.getBounds();
+
+    const display =
+        screen.getDisplayNearestPoint({
+            x: bounds.x,
+            y: bounds.y
+        });
+
+    const workArea =
+        display.workArea;
+
+    const padding = 20;
+
+    const minX =
+        workArea.x + padding;
+
+    const maxX =
+        workArea.x +
+        workArea.width -
+        bounds.width -
+        padding;
+
+    const minY =
+        workArea.y + padding;
+
+    const maxY =
+        workArea.y +
+        workArea.height -
+        bounds.height -
+        padding;
+
+    const x =
+        Math.max(
+            minX,
+            Math.min(
+                bounds.x,
+                maxX
+            )
+        );
+
+    const y =
+        Math.max(
+            minY,
+            Math.min(
+                bounds.y,
+                maxY
+            )
+        );
+
+    if (
+        x !== bounds.x ||
+        y !== bounds.y
+    ) {
+
+        totoroWindow.setPosition(
+            x,
+            y,
+            true
+        );
+    }
+}
+
+
+// ========================================
+// SNAP CHARACTER TO NEAREST EDGE
+// ========================================
+
+function snapCharacterToEdge() {
+
+    if (
+        !totoroWindow ||
+        totoroWindow.isDestroyed()
+    ) {
+        return;
+    }
+
+    const bounds =
+        totoroWindow.getBounds();
+
+    const display =
+        screen.getDisplayNearestPoint({
+            x: bounds.x,
+            y: bounds.y
+        });
+
+    const workArea =
+        display.workArea;
+
+    const distanceToLeft =
+        Math.abs(
+            bounds.x -
+            workArea.x
+        );
+
+    const distanceToRight =
+        Math.abs(
+            (
+                bounds.x +
+                bounds.width
+            ) -
+            (
+                workArea.x +
+                workArea.width
+            )
+        );
+
+    const snapToRight =
+        distanceToRight <
+        distanceToLeft;
+
+    const padding = 20;
+
+    const targetX =
+        snapToRight
+            ? workArea.x +
+              workArea.width -
+              bounds.width -
+              padding
+            : workArea.x +
+              padding;
+
+    const targetY =
+        Math.max(
+            workArea.y + padding,
+            Math.min(
+                bounds.y,
+                workArea.y +
+                workArea.height -
+                bounds.height -
+                padding
+            )
+        );
+
+    console.log(
+        "Snapping character:",
+        targetX,
+        targetY
+    );
+
+    totoroWindow.setPosition(
+        targetX,
+        targetY,
+        true
+    );
+
+    saveCharacterPosition();
+}
+
+
+// ========================================
 // CREATE MAIN WINDOW
 // ========================================
 
@@ -57,9 +324,11 @@ function createMainWindow() {
     mainWindow = new BrowserWindow({
 
         width: 1500,
+
         height: 900,
 
         minWidth: 1100,
+
         minHeight: 700,
 
         show: false,
@@ -85,9 +354,7 @@ function createMainWindow() {
             contextIsolation: true,
 
             nodeIntegration: false
-
         }
-
     });
 
 
@@ -117,7 +384,6 @@ function createMainWindow() {
 
         }
     );
-
 }
 
 
@@ -130,12 +396,10 @@ function createTimerWindow() {
     const display =
         screen.getPrimaryDisplay();
 
-
     const {
         width,
         height
     } = display.workAreaSize;
-
 
     const timerWidth = 360;
 
@@ -182,9 +446,7 @@ function createTimerWindow() {
                 contextIsolation: false,
 
                 nodeIntegration: true
-
             }
-
         });
 
 
@@ -194,7 +456,6 @@ function createTimerWindow() {
             "timer.html"
         )
     );
-
 }
 
 
@@ -207,30 +468,58 @@ function createTotoroWindow() {
     const display =
         screen.getPrimaryDisplay();
 
-
     const bounds =
         display.workArea;
-
 
     const characterWidth = 250;
 
     const characterHeight = 250;
 
 
+    // ====================================
+    // LOAD SAVED POSITION
+    // ====================================
+
+    const savedPosition =
+        loadCharacterPosition();
+
+
+    // ====================================
+    // DEFAULT POSITION
+    // ====================================
+
+    const defaultX =
+        bounds.x +
+        bounds.width -
+        characterWidth -
+        30;
+
+    const defaultY =
+        bounds.y +
+        bounds.height -
+        characterHeight -
+        30;
+
+
+    const characterX =
+        savedPosition?.x ??
+        defaultX;
+
+    const characterY =
+        savedPosition?.y ??
+        defaultY;
+
+
+    // ====================================
+    // CREATE WINDOW
+    // ====================================
+
     totoroWindow =
         new BrowserWindow({
 
-            x:
-                bounds.x +
-                bounds.width -
-                characterWidth -
-                30,
+            x: characterX,
 
-            y:
-                bounds.y +
-                bounds.height -
-                characterHeight -
-                30,
+            y: characterY,
 
             width:
                 characterWidth,
@@ -262,19 +551,24 @@ function createTotoroWindow() {
                 contextIsolation: false,
 
                 nodeIntegration: true
-
             }
-
         });
 
 
-    totoroWindow.setHasShadow(false);
+    // ====================================
+    // CHARACTER WINDOW SETTINGS
+    // ====================================
 
+    totoroWindow.setHasShadow(false);
 
     totoroWindow.setIgnoreMouseEvents(
         false
     );
 
+
+    // ====================================
+    // LOAD CHARACTER
+    // ====================================
 
     totoroWindow.loadFile(
         path.join(
@@ -284,6 +578,61 @@ function createTotoroWindow() {
     );
 
 
+    // ====================================
+    // CHARACTER MOVED
+    // ====================================
+
+    totoroWindow.on(
+        "moved",
+        () => {
+
+            if (
+                !totoroWindow ||
+                totoroWindow.isDestroyed()
+            ) {
+                return;
+            }
+
+
+            // Keep inside usable screen
+            keepCharacterInsideWorkArea();
+
+
+            // Save current position
+            saveCharacterPosition();
+
+
+            // Cancel previous snap timer
+            clearTimeout(
+                totoroWindow.snapTimeout
+            );
+
+
+            // Wait for user to finish dragging
+            totoroWindow.snapTimeout =
+                setTimeout(
+                    () => {
+
+                        if (
+                            !totoroWindow ||
+                            totoroWindow.isDestroyed()
+                        ) {
+                            return;
+                        }
+
+                        snapCharacterToEdge();
+
+                    },
+                    350
+                );
+        }
+    );
+
+
+    // ====================================
+    // CHARACTER READY
+    // ====================================
+
     totoroWindow.once(
         "ready-to-show",
         () => {
@@ -292,19 +641,35 @@ function createTotoroWindow() {
                 "Character window ready."
             );
 
+            // Make sure saved position
+            // is still valid
+            keepCharacterInsideWorkArea();
+
+            saveCharacterPosition();
+
         }
     );
 
+
+    // ====================================
+    // CHARACTER CLOSED
+    // ====================================
 
     totoroWindow.on(
         "closed",
         () => {
 
+            if (
+                totoroWindow &&
+                !totoroWindow.isDestroyed()
+            ) {
+                saveCharacterPosition();
+            }
+
             totoroWindow = null;
 
         }
     );
-
 }
 
 
@@ -323,10 +688,8 @@ async function getActiveApplication() {
                     "get-windows"
                 );
 
-
             getActiveWindow =
                 module.activeWindow;
-
         }
 
 
@@ -337,7 +700,6 @@ async function getActiveApplication() {
         if (!activeWindow) {
 
             return null;
-
         }
 
 
@@ -352,7 +714,6 @@ async function getActiveApplication() {
             url:
                 activeWindow.url ||
                 null
-
         };
 
     }
@@ -364,11 +725,8 @@ async function getActiveApplication() {
             error
         );
 
-
         return null;
-
     }
-
 }
 
 
@@ -383,7 +741,6 @@ function isOurApplication(
     if (!activeWindow) {
 
         return false;
-
     }
 
 
@@ -391,7 +748,6 @@ function isOurApplication(
         activeWindow.app ===
         "Electron"
     );
-
 }
 
 
@@ -406,7 +762,6 @@ function isYouTube(
     if (!activeWindow) {
 
         return false;
-
     }
 
 
@@ -441,7 +796,6 @@ function isYouTube(
             ) {
 
                 return true;
-
             }
 
         }
@@ -451,7 +805,6 @@ function isYouTube(
             // Continue and check title
 
         }
-
     }
 
 
@@ -470,12 +823,10 @@ function isYouTube(
     ) {
 
         return true;
-
     }
 
 
     return false;
-
 }
 
 
@@ -512,7 +863,6 @@ function sendCharacterState(
         );
 
     }
-
 }
 
 
@@ -529,7 +879,6 @@ async function monitorStudySession() {
     if (!activeWindow) {
 
         return;
-
     }
 
 
@@ -560,17 +909,14 @@ async function monitorStudySession() {
     ) {
 
         return;
-
     }
 
 
     const appName =
         activeWindow.app;
 
-
     const title =
         activeWindow.title;
-
 
     const url =
         activeWindow.url;
@@ -621,7 +967,6 @@ async function monitorStudySession() {
     ) {
 
         return;
-
     }
 
 
@@ -656,10 +1001,8 @@ async function monitorStudySession() {
             isDistracted =
                 true;
 
-
             isSad =
                 false;
-
 
             distractionStartTime =
                 Date.now();
@@ -731,7 +1074,6 @@ async function monitorStudySession() {
 
 
         return;
-
     }
 
 
@@ -749,10 +1091,8 @@ async function monitorStudySession() {
         isDistracted =
             false;
 
-
         isSad =
             false;
-
 
         distractionStartTime =
             null;
@@ -765,7 +1105,6 @@ async function monitorStudySession() {
         );
 
     }
-
 }
 
 
@@ -778,6 +1117,7 @@ app.whenReady().then(() => {
     // New glass subject-selection UI
     createMainWindow();
 
+
     // Existing study windows
     // They start hidden.
     createTimerWindow();
@@ -786,12 +1126,10 @@ app.whenReady().then(() => {
 
 
     // Start monitoring immediately
-
     monitorStudySession();
 
 
     // Check every second
-
     setInterval(
         monitorStudySession,
         1000
@@ -866,7 +1204,6 @@ ipcMain.on(
             );
 
             return;
-
         }
 
 
@@ -904,12 +1241,13 @@ ipcMain.on(
 
             timerWindow.show();
 
-            timerWindow.webContents.send(
-             "study-subject",
-            selectedSubject
-    );
 
-}
+            timerWindow.webContents.send(
+                "study-subject",
+                selectedSubject
+            );
+
+        }
 
 
         // ====================================
@@ -968,7 +1306,6 @@ ipcMain.on(
             );
 
             return;
-
         }
 
 
