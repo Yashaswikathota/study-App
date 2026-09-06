@@ -59,6 +59,8 @@ app.disableHardwareAcceleration();
 let mainWindow = null;
 let timerWindow = null;
 let totoroWindow = null;
+let reportWindow = null;
+
 
 // ========================================
 // CURRENT STUDY SESSION
@@ -633,6 +635,157 @@ function createTimerWindow() {
     );
 }
 
+// ========================================
+// CREATE REPORT WINDOW
+// ========================================
+
+function createReportWindow(savedSession) {
+
+    // ----------------------------------------
+    // Close existing report if necessary
+    // ----------------------------------------
+
+    if (
+        reportWindow &&
+        !reportWindow.isDestroyed()
+    ) {
+
+        reportWindow.close();
+
+    }
+
+
+    // ----------------------------------------
+    // Report dimensions
+    // ----------------------------------------
+
+    const reportWidth = 420;
+    const reportHeight = 460;
+
+
+// ----------------------------------------
+// Center report window on screen
+// ----------------------------------------
+
+    const display =
+    screen.getPrimaryDisplay();
+
+    const workArea =
+    display.workArea;
+
+
+    const reportX =
+    workArea.x +
+    (
+        workArea.width -
+        reportWidth
+    ) / 2;
+
+
+    const reportY =
+    workArea.y +
+    (
+        workArea.height -
+        reportHeight
+    ) / 2;
+    // ----------------------------------------
+    // Create report window
+    // ----------------------------------------
+
+    reportWindow =
+        new BrowserWindow({
+
+            x: Math.round(reportX),
+
+            y: Math.round(reportY),
+
+            width: reportWidth,
+
+            height: reportHeight,
+
+            frame: false,
+
+            transparent: true,
+
+            backgroundColor:
+                "#00000000",
+
+            show: false,
+
+            hasShadow: false,
+
+            alwaysOnTop: true,
+
+            resizable: false,
+
+            movable: true,
+
+            skipTaskbar: true,
+
+            webPreferences: {
+
+                contextIsolation: false,
+
+                nodeIntegration: true
+
+            }
+
+        });
+
+
+    // ----------------------------------------
+    // Load report UI
+    // ----------------------------------------
+
+    reportWindow.loadFile(
+        path.join(
+            __dirname,
+            "report.html"
+        )
+    );
+
+
+    // ----------------------------------------
+    // Send session after page loads
+    // ----------------------------------------
+
+    reportWindow.once(
+        "ready-to-show",
+        () => {
+
+            console.log(
+                "REPORT WINDOW READY"
+            );
+
+
+            reportWindow.webContents.send(
+                "session-report",
+                savedSession
+            );
+
+
+            reportWindow.show();
+
+            reportWindow.focus();
+
+        }
+    );
+
+
+    // ----------------------------------------
+    // Report closed
+    // ----------------------------------------
+
+    reportWindow.on(
+        "closed",
+        () => {
+
+            reportWindow = null;
+
+        }
+    );
+
+}
 
 // ========================================
 // CREATE CHARACTER WINDOW
@@ -1697,28 +1850,87 @@ ipcMain.on(
             "STUDY SESSION STOPPED"
         );
 
+        // ========================================
+        // OPEN SESSION REPORT WINDOW
+        // ========================================
 
-        // ====================================
-        // SEND SAVED SESSION TO FRONTEND
-        // ====================================
+        if (savedSession) {
 
-        if (
-            savedSession &&
-            mainWindow &&
-            !mainWindow.isDestroyed()
-        ) {
-
-            mainWindow.webContents.send(
-                "session-stopped",
+            console.log(
+                 "OPENING SESSION REPORT WINDOW:",
                 savedSession
             );
 
-        }
 
+            // ----------------------------------------
+            // Hide timer
+            // ----------------------------------------
+
+            if (
+                timerWindow &&
+                !timerWindow.isDestroyed()
+            ) {
+
+            timerWindow.hide();
+
+            }
+
+
+            // ----------------------------------------
+            // Open report window
+             // ----------------------------------------
+
+            createReportWindow(
+             savedSession
+         );
+
+        }
+    }
+);
+
+// ========================================
+// REPORT → DONE
+// ========================================
+
+ipcMain.on(
+    "report-done",
+    () => {
 
         console.log(
-            "================================"
+            "REPORT DONE"
         );
+
+
+        // ----------------------------------------
+        // Close report window
+        // ----------------------------------------
+
+        if (
+            reportWindow &&
+            !reportWindow.isDestroyed()
+        ) {
+
+            reportWindow.close();
+
+        }
+
+        reportWindow = null;
+
+
+        // ----------------------------------------
+        // Show timer again
+        // ----------------------------------------
+
+        if (
+            timerWindow &&
+            !timerWindow.isDestroyed()
+        ) {
+
+            timerWindow.show();
+
+            timerWindow.focus();
+
+        }
 
     }
 );

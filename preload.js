@@ -1,22 +1,40 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+
+// =========================================================
+// MAIN WINDOW CONTROLS
+// =========================================================
+
 contextBridge.exposeInMainWorld("electronWindow", {
-  hide() {
-    ipcRenderer.send("window-hide");
-  },
 
-  toggleFullscreen() {
-    ipcRenderer.send("window-fullscreen");
-  },
+    hide() {
+        ipcRenderer.send("window-hide");
+    },
 
-  close() {
-    ipcRenderer.send("window-close");
-  }
+    toggleFullscreen() {
+        ipcRenderer.send("window-fullscreen");
+    },
+
+    close() {
+        ipcRenderer.send("window-close");
+    }
+
 });
 
-// Study Companion API
+
+// =========================================================
+// STUDY API
+// =========================================================
+
 contextBridge.exposeInMainWorld("studyApi", {
-  selectSubject(subject) {
-    ipcRenderer.send("subject-selected", subject);
-  }
+
+    selectSubject(subject) {
+
+        ipcRenderer.send(
+            "subject-selected",
+            subject
+        );
+
+    }
+
 });

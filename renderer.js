@@ -1,3 +1,7 @@
+// =========================================================
+// SUBJECT SELECTION
+// =========================================================
+
 const subjectInput =
   document.getElementById("subjectInput");
 
@@ -13,17 +17,26 @@ const laterButton =
 let isPaused = false;
 
 
-/* =========================================================
-   START STUDYING
-   ========================================================= */
+// =========================================================
+// START STUDYING
+// =========================================================
 
 function startStudying() {
-  const subject = subjectInput.value.trim();
+
+  const subject =
+    subjectInput.value.trim();
+
+
+  // -----------------------------------------
+  // Empty subject
+  // -----------------------------------------
 
   if (!subject) {
+
     subjectInput.focus();
 
-    const input = document.querySelector(".study-input");
+    const input =
+      document.querySelector(".study-input");
 
     input.animate(
       [
@@ -43,15 +56,38 @@ function startStudying() {
     return;
   }
 
-  console.log("Selected subject:", subject);
 
-  const text = startButton.querySelector("span");
-  text.textContent = "Starting...";
+  console.log(
+    "Selected subject:",
+    subject
+  );
 
-  // Send the selected subject to Electron
-  window.studyApi.selectSubject(subject);
+
+  // -----------------------------------------
+  // Button feedback
+  // -----------------------------------------
+
+  const text =
+    startButton.querySelector("span");
+
+  text.textContent =
+    "Starting...";
+
+
+  // -----------------------------------------
+  // Send subject to Electron
+  // -----------------------------------------
+
+  window.studyApi.selectSubject(
+    subject
+  );
+
 }
 
+
+// =========================================================
+// START BUTTON
+// =========================================================
 
 startButton.addEventListener(
   "click",
@@ -59,35 +95,53 @@ startButton.addEventListener(
 );
 
 
+// =========================================================
+// ENTER BUTTON
+// =========================================================
+
 enterButton.addEventListener(
   "click",
   startStudying
 );
 
 
+// =========================================================
+// ENTER KEY
+// =========================================================
+
 subjectInput.addEventListener(
   "keydown",
   (event) => {
 
     if (event.key === "Enter") {
+
       startStudying();
+
     }
 
   }
 );
 
 
+// =========================================================
+// MAYBE LATER
+// =========================================================
+
 laterButton.addEventListener(
   "click",
   () => {
-    console.log("Maybe later");
+
+    console.log(
+      "Maybe later"
+    );
+
   }
 );
 
 
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
+// =========================================================
+// NAVIGATION
+// =========================================================
 
 document
   .querySelectorAll(".nav-item")
@@ -100,10 +154,17 @@ document
         document
           .querySelectorAll(".nav-item")
           .forEach((nav) => {
-            nav.classList.remove("active");
+
+            nav.classList.remove(
+              "active"
+            );
+
           });
 
-        item.classList.add("active");
+
+        item.classList.add(
+          "active"
+        );
 
       }
     );
@@ -111,24 +172,32 @@ document
   });
 
 
-/* =========================================================
-   ELECTRON WINDOW CONTROLS
-   ========================================================= */
+// =========================================================
+// ELECTRON WINDOW CONTROLS
+// =========================================================
 
 const hideWindow =
-  document.getElementById("hideWindow");
+  document.getElementById(
+    "hideWindow"
+  );
 
 const fullscreenWindow =
-  document.getElementById("fullscreenWindow");
+  document.getElementById(
+    "fullscreenWindow"
+  );
 
 const closeWindow =
-  document.getElementById("closeWindow");
+  document.getElementById(
+    "closeWindow"
+  );
 
 
 hideWindow.addEventListener(
   "click",
   () => {
+
     window.electronWindow.hide();
+
   }
 );
 
@@ -136,7 +205,9 @@ hideWindow.addEventListener(
 fullscreenWindow.addEventListener(
   "click",
   () => {
+
     window.electronWindow.toggleFullscreen();
+
   }
 );
 
@@ -144,6 +215,8 @@ fullscreenWindow.addEventListener(
 closeWindow.addEventListener(
   "click",
   () => {
+
     window.electronWindow.close();
+
   }
 );

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Study Session Report</title>
+
+    <link
+        rel="stylesheet"
+        href="./report.css"
+    >
+
+</head>
+
+<body>
+
+    <main class="report-window">
+
+        <div class="report-glow"></div>
+
+
+        <!-- STATUS -->
+
+        <div class="report-badge">
+            SESSION COMPLETE
+        </div>
+
+
+        <!-- TITLE -->
+
+        <h1>
+            Great work!
+        </h1>
+
+
+        <p class="subtitle">
+            Here's how your study session went.
+        </p>
+
+
+        <!-- SUBJECT -->
+
+        <div
+            id="reportSubject"
+            class="subject"
+        >
+            Java
+        </div>
+
+
+        <!-- STATS -->
+
+        <div class="stats">
+
+            <div class="stat">
+
+                <span
+                    id="reportDuration"
+                    class="stat-value"
+                >
+                    0s
+                </span>
+
+                <span class="stat-label">
+                    Total Time
+                </span>
+
+            </div>
+
+
+            <div class="stat">
+
+                <span
+                    id="reportFocused"
+                    class="stat-value"
+                >
+                    0s
+                </span>
+
+                <span class="stat-label">
+                    Focused
+                </span>
+
+            </div>
+
+
+            <div class="stat">
+
+                <span
+                    id="reportDistracted"
+                    class="stat-value"
+                >
+                    0s
+                </span>
+
+                <span class="stat-label">
+                    Distracted
+                </span>
+
+            </div>
+
+
+            <div class="stat">
+
+                <span
+                    id="reportYoutube"
+                    class="stat-value"
+                >
+                    0
+                </span>
+
+                <span class="stat-label">
+                    YouTube Visits
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- FOCUS SCORE -->
+
+        <div class="focus-score">
+
+            <div>
+
+                <span class="score-label">
+                    Focus Score
+                </span>
+
+                <span class="score-description">
+                    Time spent focused
+                </span>
+
+            </div>
+
+
+            <span
+                id="focusScore"
+                class="score-value"
+            >
+                0%
+            </span>
+
+        </div>
+
+
+        <!-- DONE -->
+
+        <button
+            id="reportDoneButton"
+            class="done-button"
+        >
+
+            <span>
+                Done
+            </span>
+
+            <span class="arrow">
+                →
+            </span>
+
+        </button>
+
+    </main>
+
+
+    <script src="./report.js"></script>
+
+</body>
+
+</html>

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
 
   <meta
@@ -8,46 +11,88 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>AI Study Companion</title>
+  <title>
+    AI Study Companion
+  </title>
 
-  <link rel="stylesheet" href="./styles.css">
+  <link
+    rel="stylesheet"
+    href="./styles.css"
+  >
+
 </head>
+
 
 <body>
 
+  <!-- =====================================================
+       AMBIENT BACKGROUND
+       ===================================================== -->
+
   <div class="ambient ambient-one"></div>
+
   <div class="ambient ambient-two"></div>
+
   <div class="ambient ambient-three"></div>
 
 
+  <!-- =====================================================
+       MAIN WINDOW
+       ===================================================== -->
+
   <main class="glass-window">
 
-    <!-- HEADER -->
+
+    <!-- ===================================================
+         HEADER
+         =================================================== -->
 
     <header class="topbar">
 
-      <div class="brand">
-        <div class="brand-icon">✦</div>
 
-        <span>AI Study Companion</span>
+      <!-- BRAND -->
+
+      <div class="brand">
+
+        <div class="brand-icon">
+          ✦
+        </div>
+
+        <span>
+          AI Study Companion
+        </span>
+
       </div>
 
 
+      <!-- NAVIGATION -->
+
       <nav class="navigation">
 
-        <button class="nav-item active">
+        <button
+          class="nav-item active"
+        >
           Focus
         </button>
 
-        <button class="nav-item">
+
+        <button
+          class="nav-item"
+        >
           Analytics
         </button>
 
-        <button class="nav-item">
+
+        <button
+          class="nav-item"
+        >
           Settings
         </button>
 
-        <button class="profile-button">
+
+        <button
+          class="profile-button"
+        >
           <span></span>
         </button>
 
@@ -58,40 +103,63 @@
 
       <div class="window-controls">
 
+
+        <!-- HIDE -->
+
         <button
           id="hideWindow"
           class="window-control"
           title="Hide"
         >
+
           <svg viewBox="0 0 24 24">
+
             <path d="M5 12h14"/>
+
           </svg>
+
         </button>
 
+
+        <!-- FULLSCREEN -->
 
         <button
           id="fullscreenWindow"
           class="window-control"
           title="Full Screen"
         >
+
           <svg viewBox="0 0 24 24">
+
             <path d="M8 3H3v5"/>
+
             <path d="M16 3h5v5"/>
+
             <path d="M8 21H3v-5"/>
+
             <path d="M16 21h5v-5"/>
+
           </svg>
+
         </button>
 
+
+        <!-- CLOSE -->
 
         <button
           id="closeWindow"
           class="window-control close-control"
           title="Close"
         >
+
           <svg viewBox="0 0 24 24">
+
             <path d="M6 6l12 12"/>
+
             <path d="M18 6L6 18"/>
+
           </svg>
+
         </button>
 
       </div>
@@ -99,19 +167,39 @@
     </header>
 
 
-    <!-- LEFT TEXT -->
+    <!-- ===================================================
+         LEFT SIDE COPY
+         =================================================== -->
 
     <div class="side-copy">
-      <span>SMALL</span>
-      <span>STEPS</span>
-      <span>BIG</span>
-      <span>PROGRESS</span>
+
+      <span>
+        SMALL
+      </span>
+
+      <span>
+        STEPS
+      </span>
+
+      <span>
+        BIG
+      </span>
+
+      <span>
+        PROGRESS
+      </span>
+
     </div>
 
 
-    <!-- MAIN HERO -->
+    <!-- ===================================================
+         MAIN HERO
+         =================================================== -->
 
     <section class="hero">
+
+
+      <!-- MASCOT -->
 
       <div class="mascot-container">
 
@@ -122,14 +210,18 @@
           muted
           playsinline
         >
+
           <source
             src="./assets/mascot.webm"
             type="video/webm"
           >
+
         </video>
 
       </div>
 
+
+      <!-- READY STATUS -->
 
       <div class="ready">
 
@@ -140,21 +232,42 @@
       </div>
 
 
+      <!-- HEADING -->
+
       <h1>
+
         What are you
-        <span>studying</span>
+
+        <span>
+          studying
+        </span>
+
         today?
+
       </h1>
 
 
+      <!-- SUBTITLE -->
+
       <p class="subtitle">
-        Tell your AI Study Companion what you're working on.
+
+        Tell your AI Study Companion
+        what you're working on.
+
         <br>
-        It'll help you stay focused on that subject.
+
+        It'll help you stay focused
+        on that subject.
+
       </p>
 
 
+      <!-- =================================================
+           SUBJECT INPUT
+           ================================================= -->
+
       <div class="study-input">
+
 
         <div class="input-icon">
 
@@ -163,10 +276,15 @@
             width="22"
             height="22"
           >
+
             <path d="M5 4.5h14v15H5z"/>
+
             <path d="M8 8h8"/>
+
             <path d="M8 12h8"/>
+
             <path d="M8 16h5"/>
+
           </svg>
 
         </div>
@@ -183,17 +301,26 @@
           id="enterButton"
           class="enter-button"
         >
+
           ↵
+
         </button>
 
       </div>
 
 
+      <!-- =================================================
+           START BUTTON
+           ================================================= -->
+
       <button
         id="startButton"
         class="start-button"
       >
-        <span>Start Studying</span>
+
+        <span>
+          Start Studying
+        </span>
 
         <span class="arrow">
           →
@@ -202,61 +329,96 @@
       </button>
 
 
+      <!-- =================================================
+           MAYBE LATER
+           ================================================= -->
+
       <button
         id="laterButton"
         class="later-button"
       >
+
         Maybe later
+
       </button>
 
     </section>
 
 
-    <!-- RIGHT CARD -->
+    <!-- ===================================================
+         RIGHT FOCUS CARD
+         =================================================== -->
 
     <aside class="focus-card">
+
 
       <div class="sparkle">
         ✦
       </div>
 
+
       <div class="focus-label">
         Focus
       </div>
 
+
       <div class="focus-message">
+
         Today for a
+
         <br>
+
         brighter
+
         <br>
+
         tomorrow.
+
       </div>
+
 
       <div class="focus-line"></div>
 
     </aside>
 
 
-    <!-- BOTTOM LEFT -->
+    <!-- ===================================================
+         BOTTOM LEFT
+         =================================================== -->
 
     <div class="bottom-copy">
 
       <div class="small-line"></div>
 
-      <span>Distraction free</span>
-      <span>A brighter you</span>
+      <span>
+        Distraction free
+      </span>
+
+      <span>
+        A brighter you
+      </span>
 
     </div>
 
+
+    <!-- ===================================================
+         VERSION
+         =================================================== -->
 
     <div class="version">
       v1.0.0
     </div>
 
+
   </main>
 
+
+  <!-- =====================================================
+       RENDERER
+       ===================================================== -->
 
   <script src="./renderer.js"></script>
 
 </body>
+
 </html>
