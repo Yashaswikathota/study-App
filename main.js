@@ -15,6 +15,7 @@ app.disableHardwareAcceleration();
 // WINDOWS
 // ========================================
 
+let mainWindow = null;
 let timerWindow = null;
 let totoroWindow = null;
 
@@ -32,6 +33,8 @@ let getActiveWindow = null;
 
 let isStudySessionActive = false;
 
+let selectedSubject = null;
+
 let baselineApplication = null;
 
 let currentApplication = null;
@@ -46,6 +49,79 @@ let lastNonElectronApplication = null;
 
 
 // ========================================
+// CREATE MAIN WINDOW
+// ========================================
+
+function createMainWindow() {
+
+    mainWindow = new BrowserWindow({
+
+        width: 1500,
+        height: 900,
+
+        minWidth: 1100,
+        minHeight: 700,
+
+        show: false,
+
+        frame: false,
+
+        transparent: true,
+
+        backgroundColor: "#00000000",
+
+        vibrancy: "under-window",
+
+        visualEffectState: "active",
+
+        webPreferences: {
+
+            preload:
+                path.join(
+                    __dirname,
+                    "preload.js"
+                ),
+
+            contextIsolation: true,
+
+            nodeIntegration: false
+
+        }
+
+    });
+
+
+    mainWindow.loadFile(
+        path.join(
+            __dirname,
+            "index.html"
+        )
+    );
+
+
+    mainWindow.once(
+        "ready-to-show",
+        () => {
+
+            mainWindow.show();
+
+        }
+    );
+
+
+    mainWindow.on(
+        "closed",
+        () => {
+
+            mainWindow = null;
+
+        }
+    );
+
+}
+
+
+// ========================================
 // CREATE TIMER WINDOW
 // ========================================
 
@@ -54,6 +130,7 @@ function createTimerWindow() {
     const display =
         screen.getPrimaryDisplay();
 
+
     const {
         width,
         height
@@ -61,6 +138,7 @@ function createTimerWindow() {
 
 
     const timerWidth = 360;
+
     const timerHeight = 180;
 
 
@@ -87,6 +165,8 @@ function createTimerWindow() {
             backgroundColor:
                 "#00000000",
 
+            show: false,
+
             hasShadow: false,
 
             alwaysOnTop: true,
@@ -111,9 +191,10 @@ function createTimerWindow() {
     timerWindow.loadFile(
         path.join(
             __dirname,
-            "index.html"
+            "timer.html"
         )
     );
+
 }
 
 
@@ -126,11 +207,13 @@ function createTotoroWindow() {
     const display =
         screen.getPrimaryDisplay();
 
+
     const bounds =
         display.workArea;
 
 
     const characterWidth = 250;
+
     const characterHeight = 250;
 
 
@@ -162,6 +245,8 @@ function createTotoroWindow() {
             backgroundColor:
                 "#00000000",
 
+            show: false,
+
             hasShadow: false,
 
             alwaysOnTop: true,
@@ -185,7 +270,10 @@ function createTotoroWindow() {
 
     totoroWindow.setHasShadow(false);
 
-    totoroWindow.setIgnoreMouseEvents(false);
+
+    totoroWindow.setIgnoreMouseEvents(
+        false
+    );
 
 
     totoroWindow.loadFile(
@@ -200,7 +288,9 @@ function createTotoroWindow() {
         "ready-to-show",
         () => {
 
-            totoroWindow.show();
+            console.log(
+                "Character window ready."
+            );
 
         }
     );
@@ -214,6 +304,7 @@ function createTotoroWindow() {
 
         }
     );
+
 }
 
 
@@ -228,7 +319,10 @@ async function getActiveApplication() {
         if (!getActiveWindow) {
 
             const module =
-                await import("get-windows");
+                await import(
+                    "get-windows"
+                );
+
 
             getActiveWindow =
                 module.activeWindow;
@@ -256,7 +350,8 @@ async function getActiveApplication() {
                 activeWindow.title,
 
             url:
-                activeWindow.url || null
+                activeWindow.url ||
+                null
 
         };
 
@@ -269,6 +364,7 @@ async function getActiveApplication() {
             error
         );
 
+
         return null;
 
     }
@@ -280,7 +376,9 @@ async function getActiveApplication() {
 // IS THIS OUR ELECTRON APP?
 // ========================================
 
-function isOurApplication(activeWindow) {
+function isOurApplication(
+    activeWindow
+) {
 
     if (!activeWindow) {
 
@@ -290,7 +388,8 @@ function isOurApplication(activeWindow) {
 
 
     return (
-        activeWindow.app === "Electron"
+        activeWindow.app ===
+        "Electron"
     );
 
 }
@@ -300,7 +399,9 @@ function isOurApplication(activeWindow) {
 // IS THIS YOUTUBE?
 // ========================================
 
-function isYouTube(activeWindow) {
+function isYouTube(
+    activeWindow
+) {
 
     if (!activeWindow) {
 
@@ -328,9 +429,15 @@ function isYouTube(activeWindow) {
 
 
             if (
-                hostname === "youtube.com" ||
-                hostname === "www.youtube.com" ||
-                hostname.endsWith(".youtube.com")
+                hostname ===
+                    "youtube.com" ||
+
+                hostname ===
+                    "www.youtube.com" ||
+
+                hostname.endsWith(
+                    ".youtube.com"
+                )
             ) {
 
                 return true;
@@ -376,7 +483,9 @@ function isYouTube(activeWindow) {
 // SEND CHARACTER STATE
 // ========================================
 
-function sendCharacterState(state) {
+function sendCharacterState(
+    state
+) {
 
     console.log(
         "SENDING CHARACTER STATE:",
@@ -429,7 +538,9 @@ async function monitorStudySession() {
     // ========================================
 
     if (
-        !isOurApplication(activeWindow)
+        !isOurApplication(
+            activeWindow
+        )
     ) {
 
         lastNonElectronApplication =
@@ -443,7 +554,9 @@ async function monitorStudySession() {
     // ========================================
 
     if (
-        isOurApplication(activeWindow)
+        isOurApplication(
+            activeWindow
+        )
     ) {
 
         return;
@@ -454,8 +567,10 @@ async function monitorStudySession() {
     const appName =
         activeWindow.app;
 
+
     const title =
         activeWindow.title;
+
 
     const url =
         activeWindow.url;
@@ -660,6 +775,11 @@ async function monitorStudySession() {
 
 app.whenReady().then(() => {
 
+    // New glass subject-selection UI
+    createMainWindow();
+
+    // Existing study windows
+    // They start hidden.
     createTimerWindow();
 
     createTotoroWindow();
@@ -683,14 +803,17 @@ app.whenReady().then(() => {
         () => {
 
             if (
-                BrowserWindow
-                    .getAllWindows()
-                    .length === 0
+                !mainWindow ||
+                mainWindow.isDestroyed()
             ) {
 
-                createTimerWindow();
+                createMainWindow();
 
-                createTotoroWindow();
+            }
+
+            else {
+
+                mainWindow.show();
 
             }
 
@@ -717,6 +840,96 @@ ipcMain.on(
         sendCharacterState(
             state
         );
+
+    }
+);
+
+
+// ========================================
+// SUBJECT SELECTED FROM MAIN UI
+// ========================================
+
+ipcMain.on(
+    "subject-selected",
+    (event, subject) => {
+
+        selectedSubject =
+            String(
+                subject || ""
+            ).trim();
+
+
+        if (!selectedSubject) {
+
+            console.log(
+                "No subject selected."
+            );
+
+            return;
+
+        }
+
+
+        console.log(
+            "SUBJECT SELECTED:",
+            selectedSubject
+        );
+
+
+        // ====================================
+        // HIDE MAIN SUBJECT UI
+        // ====================================
+
+        const senderWindow =
+            BrowserWindow.fromWebContents(
+                event.sender
+            );
+
+
+        if (senderWindow) {
+
+            senderWindow.hide();
+
+        }
+
+
+        // ====================================
+        // SHOW TIMER
+        // ====================================
+
+        if (
+            timerWindow &&
+            !timerWindow.isDestroyed()
+        ) {
+
+            timerWindow.show();
+
+            timerWindow.webContents.send(
+            "study-subject",
+            selectedSubject
+        );
+
+    }
+
+
+        // ====================================
+        // SHOW CHARACTER
+        // ====================================
+
+        if (
+            totoroWindow &&
+            !totoroWindow.isDestroyed()
+        ) {
+
+            totoroWindow.show();
+
+
+            totoroWindow.webContents.send(
+                "character-state",
+                "working"
+            );
+
+        }
 
     }
 );
@@ -872,6 +1085,56 @@ ipcMain.on(
 
 
 // ========================================
+// MAIN WINDOW CONTROLS
+// ========================================
+
+ipcMain.on(
+    "window-hide",
+    () => {
+
+        if (
+            mainWindow &&
+            !mainWindow.isDestroyed()
+        ) {
+
+            mainWindow.hide();
+
+        }
+
+    }
+);
+
+
+ipcMain.on(
+    "window-fullscreen",
+    () => {
+
+        if (
+            mainWindow &&
+            !mainWindow.isDestroyed()
+        ) {
+
+            mainWindow.setFullScreen(
+                !mainWindow.isFullScreen()
+            );
+
+        }
+
+    }
+);
+
+
+ipcMain.on(
+    "window-close",
+    () => {
+
+        app.quit();
+
+    }
+);
+
+
+// ========================================
 // CLOSE APP
 // ========================================
 
@@ -880,7 +1143,8 @@ app.on(
     () => {
 
         if (
-            process.platform !== "darwin"
+            process.platform !==
+            "darwin"
         ) {
 
             app.quit();

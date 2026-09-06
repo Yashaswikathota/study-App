@@ -1,0 +1,1181 @@
+/* =========================================================
+   AI STUDY COMPANION
+   LIQUID GLASS — BLACK TEXT VERSION
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --green: #8fd94f;
+  --green-bright: #9bea5c;
+
+  --black: #111111;
+  --black-soft: rgba(0, 0, 0, 0.72);
+  --black-muted: rgba(0, 0, 0, 0.52);
+  --black-faint: rgba(0, 0, 0, 0.32);
+
+  --glass-white: rgba(255, 255, 255, 0.34);
+  --glass-light: rgba(255, 255, 255, 0.18);
+
+  --radius: 32px;
+}
+
+
+/* =========================================================
+   HTML / BODY
+   ========================================================= */
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+
+  /*
+   * IMPORTANT:
+   * Keep the Electron window transparent.
+   * This removes the black area around the rounded app.
+   */
+  background: transparent;
+  background-color: transparent;
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "SF Pro Text",
+    Inter,
+    sans-serif;
+
+  color: var(--black);
+}
+
+
+body {
+  position: relative;
+}
+
+
+/* =========================================================
+   AMBIENT BACKGROUND LIGHT
+   ========================================================= */
+
+.ambient {
+  position: absolute;
+
+  width: 500px;
+  height: 500px;
+
+  border-radius: 50%;
+
+  pointer-events: none;
+
+  filter: blur(120px);
+
+  opacity: 0.30;
+
+  z-index: -1;
+}
+
+
+.ambient-one {
+  top: -240px;
+  left: 28%;
+
+  background:
+    rgba(105, 185, 86, 0.45);
+}
+
+
+.ambient-two {
+  right: -220px;
+  bottom: -220px;
+
+  background:
+    rgba(84, 138, 72, 0.38);
+}
+
+
+.ambient-three {
+  left: -240px;
+  bottom: -200px;
+
+  background:
+    rgba(48, 99, 76, 0.35);
+}
+
+
+/* =========================================================
+   MAIN LIQUID GLASS WINDOW
+   ========================================================= */
+
+.glass-window {
+  position: absolute;
+
+  inset: 20px;
+
+  overflow: hidden;
+
+  border-radius: var(--radius);
+
+  /*
+   * NO hard outline.
+   */
+  border: none;
+
+  /*
+   * Light translucent glass.
+   */
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.34),
+      rgba(255, 255, 255, 0.18) 38%,
+      rgba(220, 235, 220, 0.10) 70%,
+      rgba(255, 255, 255, 0.08)
+    );
+
+  /*
+   * Liquid glass.
+   */
+  backdrop-filter:
+    blur(45px)
+    saturate(160%);
+
+  -webkit-backdrop-filter:
+    blur(45px)
+    saturate(160%);
+
+  /*
+   * Soft glass depth.
+   * No solid outline.
+   */
+  box-shadow:
+    0 30px 100px
+    rgba(0, 0, 0, 0.22),
+
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.50),
+
+    inset 0 -1px 0
+    rgba(255, 255, 255, 0.08);
+
+  isolation: isolate;
+
+  z-index: 1;
+}
+
+
+/* =========================================================
+   GLASS LIGHT / REFRACTION
+   ========================================================= */
+
+.glass-window::before {
+  content: "";
+
+  position: absolute;
+
+  inset: -30%;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at 50% 15%,
+      rgba(130, 220, 100, 0.20),
+      transparent 28%
+    ),
+
+    radial-gradient(
+      circle at 10% 80%,
+      rgba(70, 145, 95, 0.14),
+      transparent 30%
+    ),
+
+    radial-gradient(
+      circle at 95% 65%,
+      rgba(100, 165, 80, 0.12),
+      transparent 30%
+    );
+
+  filter: blur(65px);
+
+  z-index: -1;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.topbar {
+  position: relative;
+
+  width: 100%;
+  height: 80px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 0 30px;
+
+  /*
+   * Allows dragging the Electron window.
+   */
+  -webkit-app-region: drag;
+
+  z-index: 20;
+}
+
+
+/* =========================================================
+   BRAND
+   ========================================================= */
+
+.brand {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  /*
+   * Leaves room for:
+   * Hide / Full Screen / Close
+   */
+  margin-left: 125px;
+
+  font-size: 15px;
+
+  font-weight: 650;
+
+  color: var(--black);
+
+  -webkit-app-region: drag;
+}
+
+
+.brand-icon {
+  width: 26px;
+  height: 26px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 8px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #78b8ff,
+      #7593ff
+    );
+
+  color: white;
+
+  box-shadow:
+    0 5px 25px
+    rgba(100, 150, 255, 0.30);
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+.navigation {
+  display: flex;
+
+  align-items: center;
+
+  gap: 30px;
+
+  margin-right: 0;
+
+  -webkit-app-region: no-drag;
+}
+
+
+.nav-item {
+  position: relative;
+
+  border: none;
+
+  background: transparent;
+
+  padding: 8px 0;
+
+  color:
+    rgba(0, 0, 0, 0.45);
+
+  font-family: inherit;
+
+  font-size: 13px;
+
+  cursor: pointer;
+
+  transition:
+    color 160ms ease;
+}
+
+
+.nav-item:hover {
+  color:
+    rgba(0, 0, 0, 0.78);
+}
+
+
+.nav-item.active {
+  color: var(--black);
+}
+
+
+.nav-item.active::after {
+  content: "";
+
+  position: absolute;
+
+  left: 50%;
+
+  bottom: -4px;
+
+  width: 14px;
+  height: 2px;
+
+  transform:
+    translateX(-50%);
+
+  border-radius: 10px;
+
+  background:
+    var(--green);
+
+  box-shadow:
+    0 0 12px
+    rgba(143, 217, 79, 0.70);
+}
+
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+.profile-button {
+  position: relative;
+
+  width: 43px;
+  height: 43px;
+
+  border: none;
+
+  border-radius: 50%;
+
+  background:
+    rgba(255, 255, 255, 0.22);
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(0, 0, 0, 0.10);
+
+  cursor: pointer;
+
+  -webkit-app-region: no-drag;
+}
+
+
+.profile-button::before {
+  content: "";
+
+  position: absolute;
+
+  width: 11px;
+  height: 11px;
+
+  left: 50%;
+  top: 9px;
+
+  transform:
+    translateX(-50%);
+
+  border-radius: 50%;
+
+  border:
+    1.5px solid
+    rgba(0, 0, 0, 0.68);
+}
+
+
+.profile-button span {
+  position: absolute;
+
+  width: 21px;
+  height: 11px;
+
+  left: 50%;
+  bottom: 8px;
+
+  transform:
+    translateX(-50%);
+
+  border-radius:
+    12px 12px 8px 8px;
+
+  border:
+    1.5px solid
+    rgba(0, 0, 0, 0.68);
+}
+
+
+/* =========================================================
+   WINDOW CONTROLS
+   ========================================================= */
+
+.window-controls {
+  position: absolute;
+
+  left: 25px;
+  top: 24px;
+
+  display: flex;
+
+  gap: 6px;
+
+  -webkit-app-region: no-drag;
+
+  z-index: 100;
+}
+
+
+.window-control {
+  width: 30px;
+  height: 30px;
+
+  display: grid;
+
+  place-items: center;
+
+  padding: 0;
+
+  border: none;
+
+  border-radius: 9px;
+
+  background:
+    rgba(0, 0, 0, 0.045);
+
+  color:
+    rgba(0, 0, 0, 0.48);
+
+  cursor: pointer;
+
+  -webkit-app-region: no-drag;
+
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+
+.window-control svg {
+  width: 13px;
+  height: 13px;
+
+  fill: none;
+
+  stroke: currentColor;
+
+  stroke-width: 1.6;
+
+  stroke-linecap: round;
+
+  stroke-linejoin: round;
+}
+
+
+.window-control:hover {
+  background:
+    rgba(0, 0, 0, 0.09);
+
+  color:
+    rgba(0, 0, 0, 0.85);
+
+  transform:
+    translateY(-1px);
+}
+
+
+.window-control:active {
+  transform:
+    scale(0.92);
+}
+
+
+.close-control:hover {
+  background:
+    rgba(255, 70, 70, 0.16);
+
+  color:
+    rgba(180, 30, 30, 0.90);
+}
+
+
+/* =========================================================
+   HERO
+   ========================================================= */
+
+.hero {
+  position: absolute;
+
+  left: 50%;
+  top: 51%;
+
+  width:
+    min(850px, 65vw);
+
+  transform:
+    translate(-50%, -50%);
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  text-align: center;
+}
+
+
+/* =========================================================
+   MASCOT
+   ========================================================= */
+
+.mascot-container {
+  width: 230px;
+  height: 170px;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+}
+
+
+.mascot {
+  width: 210px;
+  height: 165px;
+
+  object-fit: contain;
+
+  filter:
+    drop-shadow(
+      0 20px 30px
+      rgba(0, 0, 0, 0.22)
+    );
+}
+
+
+/* =========================================================
+   READY
+   ========================================================= */
+
+.ready {
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  margin-bottom: 20px;
+
+  font-size: 11px;
+
+  font-weight: 650;
+
+  letter-spacing: 2px;
+
+  color:
+    rgba(0, 0, 0, 0.48);
+}
+
+
+.ready-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background:
+    var(--green);
+
+  box-shadow:
+    0 0 13px
+    rgba(143, 217, 79, 0.90);
+}
+
+
+/* =========================================================
+   MAIN HEADING
+   ========================================================= */
+
+h1 {
+  margin: 0;
+
+  font-size:
+    clamp(42px, 4vw, 60px);
+
+  line-height: 1.05;
+
+  letter-spacing: -3px;
+
+  font-weight: 700;
+
+  color:
+    #111111;
+}
+
+
+h1 span {
+  color:
+    var(--green);
+
+  text-shadow:
+    0 0 25px
+    rgba(143, 217, 79, 0.18);
+}
+
+
+/* =========================================================
+   SUBTITLE
+   ========================================================= */
+
+.subtitle {
+  margin:
+    20px 0 31px;
+
+  font-size: 15px;
+
+  line-height: 1.7;
+
+  color:
+    rgba(0, 0, 0, 0.55);
+}
+
+
+/* =========================================================
+   LIQUID GLASS INPUT
+   ========================================================= */
+
+.study-input {
+  width: 100%;
+  height: 74px;
+
+  display: flex;
+
+  align-items: center;
+
+  padding:
+    0 12px 0 22px;
+
+  border-radius: 24px;
+
+  border: none;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.42),
+      rgba(255, 255, 255, 0.18)
+    );
+
+  backdrop-filter:
+    blur(25px)
+    saturate(160%);
+
+  -webkit-backdrop-filter:
+    blur(25px)
+    saturate(160%);
+
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.50),
+
+    inset 0 -1px 0
+    rgba(0, 0, 0, 0.04),
+
+    0 18px 50px
+    rgba(0, 0, 0, 0.12);
+
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+
+.study-input:focus-within {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.50),
+      rgba(255, 255, 255, 0.22)
+    );
+
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.58),
+
+    0 18px 55px
+    rgba(0, 0, 0, 0.15),
+
+    0 0 25px
+    rgba(143, 217, 79, 0.08);
+}
+
+
+.input-icon {
+  display: flex;
+
+  margin-right: 17px;
+
+  color:
+    rgba(0, 0, 0, 0.58);
+}
+
+
+.input-icon svg {
+  fill: none;
+
+  stroke: currentColor;
+
+  stroke-width: 1.5;
+
+  stroke-linecap: round;
+
+  stroke-linejoin: round;
+}
+
+
+.study-input input {
+  flex: 1;
+
+  min-width: 0;
+
+  border: none;
+
+  outline: none;
+
+  background: transparent;
+
+  color:
+    #111111;
+
+  font-family: inherit;
+
+  font-size: 15px;
+}
+
+
+.study-input input::placeholder {
+  color:
+    rgba(0, 0, 0, 0.42);
+}
+
+
+.enter-button {
+  width: 40px;
+  height: 40px;
+
+  display: grid;
+
+  place-items: center;
+
+  border: none;
+
+  border-radius: 13px;
+
+  background:
+    rgba(0, 0, 0, 0.045);
+
+  color:
+    rgba(0, 0, 0, 0.55);
+
+  font-size: 20px;
+
+  cursor: pointer;
+
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+
+.enter-button:hover {
+  background:
+    rgba(0, 0, 0, 0.08);
+
+  color:
+    rgba(0, 0, 0, 0.80);
+}
+
+
+/* =========================================================
+   START BUTTON
+   ========================================================= */
+
+.start-button {
+  width: 425px;
+
+  max-width: 80%;
+
+  height: 67px;
+
+  margin-top: 17px;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  gap: 16px;
+
+  border: none;
+
+  border-radius: 34px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(147, 208, 91, 0.98),
+      rgba(92, 143, 51, 0.96)
+    );
+
+  color:
+    #ffffff;
+
+  font-family: inherit;
+
+  font-size: 14px;
+
+  font-weight: 650;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 15px 40px
+    rgba(78, 130, 43, 0.28),
+
+    inset 0 1px 1px
+    rgba(255, 255, 255, 0.38);
+
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+}
+
+
+.start-button:hover {
+  transform:
+    translateY(-2px);
+
+  filter:
+    brightness(1.06);
+
+  box-shadow:
+    0 18px 45px
+    rgba(78, 130, 43, 0.35),
+
+    inset 0 1px 1px
+    rgba(255, 255, 255, 0.42);
+}
+
+
+.start-button:active {
+  transform:
+    translateY(1px);
+}
+
+
+.arrow {
+  font-size: 21px;
+
+  line-height: 1;
+}
+
+
+/* =========================================================
+   MAYBE LATER
+   ========================================================= */
+
+.later-button {
+  margin-top: 18px;
+
+  border: none;
+
+  background: transparent;
+
+  color:
+    rgba(0, 0, 0, 0.40);
+
+  font-family: inherit;
+
+  font-size: 13px;
+
+  cursor: pointer;
+
+  transition:
+    color 160ms ease;
+}
+
+
+.later-button:hover {
+  color:
+    rgba(0, 0, 0, 0.72);
+}
+
+
+/* =========================================================
+   LEFT SIDE COPY
+   ========================================================= */
+
+.side-copy {
+  position: absolute;
+
+  left: 50px;
+  top: 125px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 5px;
+
+  font-size: 11px;
+
+  line-height: 1.1;
+
+  font-weight: 650;
+
+  color:
+    rgba(0, 0, 0, 0.30);
+
+  letter-spacing: 0.4px;
+}
+
+
+/* =========================================================
+   RIGHT FOCUS CARD
+   ========================================================= */
+
+.focus-card {
+  position: absolute;
+
+  right: 40px;
+  top: 62%;
+
+  width: 205px;
+  height: 225px;
+
+  padding:
+    29px 30px;
+
+  border-radius: 23px;
+
+  border: none;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.38),
+      rgba(255, 255, 255, 0.14)
+    );
+
+  backdrop-filter:
+    blur(30px)
+    saturate(150%);
+
+  -webkit-backdrop-filter:
+    blur(30px)
+    saturate(150%);
+
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.50),
+
+    0 25px 60px
+    rgba(0, 0, 0, 0.14);
+}
+
+
+.sparkle {
+  margin-bottom: 25px;
+
+  font-size: 25px;
+
+  color:
+    var(--green);
+
+  text-shadow:
+    0 0 20px
+    rgba(143, 217, 79, 0.45);
+}
+
+
+.focus-label {
+  margin-bottom: 15px;
+
+  font-size: 14px;
+
+  color:
+    rgba(0, 0, 0, 0.58);
+}
+
+
+.focus-message {
+  font-size: 16px;
+
+  line-height: 1.48;
+
+  color:
+    rgba(0, 0, 0, 0.82);
+
+  font-weight: 500;
+}
+
+
+.focus-line {
+  width: 39px;
+  height: 1px;
+
+  margin-top: 22px;
+
+  background:
+    rgba(0, 0, 0, 0.25);
+}
+
+
+/* =========================================================
+   BOTTOM LEFT
+   ========================================================= */
+
+.bottom-copy {
+  position: absolute;
+
+  left: 50px;
+  bottom: 31px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 5px;
+
+  font-size: 11px;
+
+  color:
+    rgba(0, 0, 0, 0.34);
+}
+
+
+.small-line {
+  width: 40px;
+  height: 1px;
+
+  margin-bottom: 4px;
+
+  background:
+    rgba(0, 0, 0, 0.25);
+}
+
+
+/* =========================================================
+   VERSION
+   ========================================================= */
+
+.version {
+  position: absolute;
+
+  right: 43px;
+  bottom: 31px;
+
+  font-size: 10px;
+
+  color:
+    rgba(0, 0, 0, 0.30);
+}
+
+
+/* =========================================================
+   ACCESSIBILITY / FOCUS
+   ========================================================= */
+
+button:focus-visible,
+input:focus-visible {
+  outline:
+    2px solid
+    rgba(143, 217, 79, 0.65);
+
+  outline-offset: 3px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1200px) {
+
+  .focus-card {
+    right: 25px;
+
+    transform: scale(0.90);
+
+    transform-origin:
+      right center;
+  }
+
+  .side-copy {
+    display: none;
+  }
+
+  .bottom-copy {
+    left: 30px;
+  }
+
+  .version {
+    right: 30px;
+  }
+}
+
+
+@media (max-height: 760px) {
+
+  .hero {
+    top: 53%;
+
+    transform:
+      translate(-50%, -50%)
+      scale(0.88);
+  }
+
+  .focus-card {
+    transform:
+      scale(0.82);
+
+    transform-origin:
+      right center;
+  }
+}

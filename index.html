@@ -1,72 +1,262 @@
 <!DOCTYPE html>
-
-<html>
-
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
 
-    <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-    <title>Study Companion</title>
+  <title>AI Study Companion</title>
 
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
-
+  <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
 
-    <div class="timer">
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <div class="ambient ambient-three"></div>
 
-        <div
-            class="timer-display"
-            id="timerDisplay"
+
+  <main class="glass-window">
+
+    <!-- HEADER -->
+
+    <header class="topbar">
+
+      <div class="brand">
+        <div class="brand-icon">✦</div>
+
+        <span>AI Study Companion</span>
+      </div>
+
+
+      <nav class="navigation">
+
+        <button class="nav-item active">
+          Focus
+        </button>
+
+        <button class="nav-item">
+          Analytics
+        </button>
+
+        <button class="nav-item">
+          Settings
+        </button>
+
+        <button class="profile-button">
+          <span></span>
+        </button>
+
+      </nav>
+
+
+      <!-- WINDOW CONTROLS -->
+
+      <div class="window-controls">
+
+        <button
+          id="hideWindow"
+          class="window-control"
+          title="Hide"
         >
-            00:00
+          <svg viewBox="0 0 24 24">
+            <path d="M5 12h14"/>
+          </svg>
+        </button>
+
+
+        <button
+          id="fullscreenWindow"
+          class="window-control"
+          title="Full Screen"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M8 3H3v5"/>
+            <path d="M16 3h5v5"/>
+            <path d="M8 21H3v-5"/>
+            <path d="M16 21h5v-5"/>
+          </svg>
+        </button>
+
+
+        <button
+          id="closeWindow"
+          class="window-control close-control"
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M6 6l12 12"/>
+            <path d="M18 6L6 18"/>
+          </svg>
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- LEFT TEXT -->
+
+    <div class="side-copy">
+      <span>SMALL</span>
+      <span>STEPS</span>
+      <span>BIG</span>
+      <span>PROGRESS</span>
+    </div>
+
+
+    <!-- MAIN HERO -->
+
+    <section class="hero">
+
+      <div class="mascot-container">
+
+        <video
+          class="mascot"
+          autoplay
+          loop
+          muted
+          playsinline
+        >
+          <source
+            src="./assets/mascot.webm"
+            type="video/webm"
+          >
+        </video>
+
+      </div>
+
+
+      <div class="ready">
+
+        <span class="ready-dot"></span>
+
+        READY WHEN YOU ARE
+
+      </div>
+
+
+      <h1>
+        What are you
+        <span>studying</span>
+        today?
+      </h1>
+
+
+      <p class="subtitle">
+        Tell your AI Study Companion what you're working on.
+        <br>
+        It'll help you stay focused on that subject.
+      </p>
+
+
+      <div class="study-input">
+
+        <div class="input-icon">
+
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+          >
+            <path d="M5 4.5h14v15H5z"/>
+            <path d="M8 8h8"/>
+            <path d="M8 12h8"/>
+            <path d="M8 16h5"/>
+          </svg>
+
         </div>
 
 
-        <div class="progress-bar">
-
-            <div
-                class="progress-fill"
-                id="progressFill"
-            ></div>
-
-        </div>
+        <input
+          id="subjectInput"
+          type="text"
+          placeholder="e.g. Java, Data Structures, React, Mathematics..."
+        >
 
 
-        <div class="timer-controls">
+        <button
+          id="enterButton"
+          class="enter-button"
+        >
+          ↵
+        </button>
 
-            <input
-                type="number"
-                id="timerMinutes"
-                value="25"
-                min="1"
-            >
-
-
-            <button id="startTimer">
-                Start
-            </button>
+      </div>
 
 
-            <button id="pauseTimer">
-                Pause
-            </button>
+      <button
+        id="startButton"
+        class="start-button"
+      >
+        <span>Start Studying</span>
+
+        <span class="arrow">
+          →
+        </span>
+
+      </button>
 
 
-            <button id="resetTimer">
-                Reset
-            </button>
+      <button
+        id="laterButton"
+        class="later-button"
+      >
+        Maybe later
+      </button>
 
-        </div>
+    </section>
+
+
+    <!-- RIGHT CARD -->
+
+    <aside class="focus-card">
+
+      <div class="sparkle">
+        ✦
+      </div>
+
+      <div class="focus-label">
+        Focus
+      </div>
+
+      <div class="focus-message">
+        Today for a
+        <br>
+        brighter
+        <br>
+        tomorrow.
+      </div>
+
+      <div class="focus-line"></div>
+
+    </aside>
+
+
+    <!-- BOTTOM LEFT -->
+
+    <div class="bottom-copy">
+
+      <div class="small-line"></div>
+
+      <span>Distraction free</span>
+      <span>A brighter you</span>
 
     </div>
 
-    <script src="renderer.js"></script>
+
+    <div class="version">
+      v1.0.0
+    </div>
+
+  </main>
+
+
+  <script src="./renderer.js"></script>
 
 </body>
-
 </html>

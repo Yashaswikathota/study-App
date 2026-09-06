@@ -1,276 +1,147 @@
-const {
-    ipcRenderer
-} = require("electron");
-
-
-const timerDisplay =
-    document.getElementById(
-        "timerDisplay"
-    );
-
-
-const progressFill =
-    document.getElementById(
-        "progressFill"
-    );
-
-
-const timerMinutes =
-    document.getElementById(
-        "timerMinutes"
-    );
-
+const subjectInput =
+  document.getElementById("subjectInput");
 
 const startButton =
-    document.getElementById(
-        "startTimer"
+  document.getElementById("startButton");
+
+const enterButton =
+  document.getElementById("enterButton");
+
+const laterButton =
+  document.getElementById("laterButton");
+
+
+/* =========================================================
+   START STUDYING
+   ========================================================= */
+
+function startStudying() {
+  const subject = subjectInput.value.trim();
+
+  if (!subject) {
+    subjectInput.focus();
+
+    const input = document.querySelector(".study-input");
+
+    input.animate(
+      [
+        { transform: "translateX(0)" },
+        { transform: "translateX(-6px)" },
+        { transform: "translateX(6px)" },
+        { transform: "translateX(-4px)" },
+        { transform: "translateX(4px)" },
+        { transform: "translateX(0)" }
+      ],
+      {
+        duration: 300,
+        easing: "ease-out"
+      }
     );
 
+    return;
+  }
 
-const pauseButton =
-    document.getElementById(
-        "pauseTimer"
-    );
+  console.log("Selected subject:", subject);
 
+  const text = startButton.querySelector("span");
+  text.textContent = "Starting...";
 
-const resetButton =
-    document.getElementById(
-        "resetTimer"
-    );
-
-
-// ========================================
-// TIMER STATE
-// ========================================
-
-let elapsedSeconds = 0;
-
-let timerInterval = null;
-
-
-// ========================================
-// UPDATE TIMER
-// ========================================
-
-function updateTimer() {
-
-    const minutes =
-        Math.floor(
-            elapsedSeconds / 60
-        );
-
-
-    const seconds =
-        elapsedSeconds % 60;
-
-
-    timerDisplay.textContent =
-        `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-
-
-    const totalSeconds =
-        Number(
-            timerMinutes.value
-        ) * 60;
-
-
-    if (
-        totalSeconds <= 0
-    ) {
-
-        progressFill.style.width =
-            "0%";
-
-        return;
-
-    }
-
-
-    const progress =
-        (
-            elapsedSeconds /
-            totalSeconds
-        ) * 100;
-
-
-    progressFill.style.width =
-        `${Math.min(progress, 100)}%`;
-
+  // Send the selected subject to Electron
+  window.studyApi.selectSubject(subject);
 }
 
 
-// ========================================
-// START TIMER
-// ========================================
-
 startButton.addEventListener(
-    "click",
-    () => {
-
-        if (
-            timerInterval !== null
-        ) {
-
-            return;
-
-        }
-
-
-        const totalSeconds =
-            Number(
-                timerMinutes.value
-            ) * 60;
-
-
-        if (
-            totalSeconds <= 0
-        ) {
-
-            return;
-
-        }
-
-
-        // ====================================
-        // START STUDY SESSION
-        // ====================================
-
-        ipcRenderer.send(
-            "study-session-start"
-        );
-
-
-        timerInterval =
-            setInterval(
-                () => {
-
-                    elapsedSeconds++;
-
-                    updateTimer();
-
-
-                    // =================================
-                    // TIMER COMPLETED
-                    // =================================
-
-                    if (
-                        elapsedSeconds >=
-                        totalSeconds
-                    ) {
-
-                        clearInterval(
-                            timerInterval
-                        );
-
-
-                        timerInterval =
-                            null;
-
-
-                        // Stop distraction monitoring
-
-                        ipcRenderer.send(
-                            "study-session-stop"
-                        );
-
-                        console.log("================================");
-                        console.log("TIMER COMPLETED");
-                        console.log("Sending character-state: happy");
-                        console.log("Elapsed seconds:", elapsedSeconds);
-                        console.log("Total seconds:", totalSeconds);
-                        console.log("================================");    
-
-                        // Happy = completed session
-
-                        ipcRenderer.send(
-                            "character-state",
-                            "happy"                       
-                        );
-                        console.log("Happy character-state message sent.");
-
-
-                        alert(
-                            "Time's up!"
-                        );
-
-                    }
-
-                },
-                1000
-            );
-
-    }
+  "click",
+  startStudying
 );
 
 
-// ========================================
-// PAUSE
-// ========================================
-
-pauseButton.addEventListener(
-    "click",
-    () => {
-
-        clearInterval(
-            timerInterval
-        );
-
-
-        timerInterval =
-            null;
-        
-        ipcRenderer.send(
-            "study-session-stop"
-        );
-
-    }
+enterButton.addEventListener(
+  "click",
+  startStudying
 );
 
 
-// ========================================
-// RESET
-// ========================================
+subjectInput.addEventListener(
+  "keydown",
+  (event) => {
 
-resetButton.addEventListener(
-    "click",
-    () => {
-
-        clearInterval(
-            timerInterval
-        );
-
-
-        timerInterval =
-            null;
-
-
-        elapsedSeconds =
-            0;
-
-
-        updateTimer();
-
-
-        // Stop monitoring
-
-        ipcRenderer.send(
-            "study-session-stop"
-        );
-
-
-        // Return character to working
-
-        ipcRenderer.send(
-            "character-state",
-            "working"
-        );
-
+    if (event.key === "Enter") {
+      startStudying();
     }
+
+  }
 );
 
 
-// ========================================
-// INITIAL DISPLAY
-// ========================================
+laterButton.addEventListener(
+  "click",
+  () => {
+    console.log("Maybe later");
+  }
+);
 
-updateTimer();
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+document
+  .querySelectorAll(".nav-item")
+  .forEach((item) => {
+
+    item.addEventListener(
+      "click",
+      () => {
+
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((nav) => {
+            nav.classList.remove("active");
+          });
+
+        item.classList.add("active");
+
+      }
+    );
+
+  });
+
+
+/* =========================================================
+   ELECTRON WINDOW CONTROLS
+   ========================================================= */
+
+const hideWindow =
+  document.getElementById("hideWindow");
+
+const fullscreenWindow =
+  document.getElementById("fullscreenWindow");
+
+const closeWindow =
+  document.getElementById("closeWindow");
+
+
+hideWindow.addEventListener(
+  "click",
+  () => {
+    window.electronWindow.hide();
+  }
+);
+
+
+fullscreenWindow.addEventListener(
+  "click",
+  () => {
+    window.electronWindow.toggleFullscreen();
+  }
+);
+
+
+closeWindow.addEventListener(
+  "click",
+  () => {
+    window.electronWindow.close();
+  }
+);

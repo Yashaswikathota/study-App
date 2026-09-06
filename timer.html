@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Study Timer</title>
+
+    <link
+        rel="stylesheet"
+        href="./timer.css"
+    >
+</head>
+
+<body>
+
+    <div class="timer-window">
+
+        <!-- HEADER -->
+
+        <div class="timer-header">
+
+            <div class="status">
+
+                <span class="status-dot"></span>
+
+                <span id="statusText">
+                    Ready to study
+                </span>
+
+            </div>
+
+            <div class="drag-area">
+                Study Companion
+            </div>
+
+        </div>
+
+
+        <!-- TIMER -->
+
+        <div class="timer-content">
+
+            <div
+                class="timer-display"
+                id="timerDisplay"
+            >
+                25:00
+            </div>
+
+
+            <div class="progress-container">
+
+                <div
+                    class="progress-fill"
+                    id="progressFill"
+                ></div>
+
+            </div>
+
+
+            <div class="timer-info">
+
+                <span id="subjectDisplay">
+                    Study Session
+                </span>
+
+                <span id="progressText">
+                    0%
+                </span>
+
+            </div>
+
+
+            <!-- CONTROLS -->
+
+            <div class="timer-controls">
+
+                <div class="duration-control">
+
+                    <input
+                        type="number"
+                        id="timerMinutes"
+                        value="25"
+                        min="1"
+                        max="180"
+                    >
+
+                    <span>min</span>
+
+                </div>
+
+
+                <button
+                    id="startTimer"
+                    class="control-button start"
+                >
+                    Start
+                </button>
+
+
+                <button
+                    id="pauseTimer"
+                    class="control-button pause"
+                >
+                    Pause
+                </button>
+
+
+                <button
+                    id="resetTimer"
+                    class="control-button reset"
+                >
+                    Reset
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="./timer.js"></script>
+
+</body>
+
+</html>
