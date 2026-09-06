@@ -67,20 +67,18 @@ body {
    ========================================================= */
 
 .ambient {
-  position: absolute;
+    position: absolute;
 
-  width: 500px;
-  height: 500px;
+    width: 500px;
+    height: 500px;
 
-  border-radius: 50%;
+    border-radius: 50%;
+    pointer-events: none;
 
-  pointer-events: none;
+    filter: blur(120px);
+    opacity: 0.45;
 
-  filter: blur(120px);
-
-  opacity: 0.30;
-
-  z-index: -1;
+    z-index: 0;
 }
 
 
@@ -114,63 +112,30 @@ body {
 /* =========================================================
    MAIN LIQUID GLASS WINDOW
    ========================================================= */
-
 .glass-window {
-  position: absolute;
+    position: absolute;
+    inset: 0;
 
-  inset: 20px;
+    overflow: hidden;
 
-  overflow: hidden;
+    border-radius: 0;
 
-  border-radius: var(--radius);
+    /* No visible panel */
+    background: transparent;
 
-  /*
-   * NO hard outline.
-   */
-  border: none;
+    border: none;
 
-  /*
-   * Light translucent glass.
-   */
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.34),
-      rgba(255, 255, 255, 0.18) 38%,
-      rgba(220, 235, 220, 0.10) 70%,
-      rgba(255, 255, 255, 0.08)
-    );
+    /* No shadow */
+    box-shadow: none;
 
-  /*
-   * Liquid glass.
-   */
-  backdrop-filter:
-    blur(45px)
-    saturate(160%);
+    /* Let the Electron window itself provide transparency */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 
-  -webkit-backdrop-filter:
-    blur(45px)
-    saturate(160%);
+    isolation: auto;
 
-  /*
-   * Soft glass depth.
-   * No solid outline.
-   */
-  box-shadow:
-    0 30px 100px
-    rgba(0, 0, 0, 0.22),
-
-    inset 0 1px 0
-    rgba(255, 255, 255, 0.50),
-
-    inset 0 -1px 0
-    rgba(255, 255, 255, 0.08);
-
-  isolation: isolate;
-
-  z-index: 1;
+    z-index: 1;
 }
-
 
 /* =========================================================
    GLASS LIGHT / REFRACTION
