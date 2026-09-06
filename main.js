@@ -8,6 +8,47 @@ const {
 const path = require("node:path");
 const fs = require("node:fs");
 
+require("dotenv").config();
+
+const { Pool } = require("pg");
+
+// ========================================
+// POSTGRESQL CONNECTION
+// ========================================
+
+const db = new Pool({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 5432),
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD
+});
+
+
+// ========================================
+// TEST DATABASE CONNECTION
+// ========================================
+
+db.connect()
+    .then((client) => {
+
+        console.log("================================");
+        console.log("POSTGRESQL CONNECTED");
+        console.log("Database:", process.env.DB_NAME);
+        console.log("================================");
+
+        client.release();
+
+    })
+    .catch((error) => {
+
+        console.error("================================");
+        console.error("POSTGRESQL CONNECTION FAILED");
+        console.error(error.message);
+        console.error("================================");
+
+    });
+
 app.disableHardwareAcceleration();
 
 
@@ -18,6 +59,17 @@ app.disableHardwareAcceleration();
 let mainWindow = null;
 let timerWindow = null;
 let totoroWindow = null;
+
+// ========================================
+// CURRENT STUDY SESSION
+// ========================================
+
+let currentSession = {
+    subject: null,
+    startedAt: null,
+    youtubeVisits: 0,
+    distractionSeconds: 0
+};
 
 
 // ========================================
@@ -57,7 +109,130 @@ let isSad = false;
 
 let lastNonElectronApplication = null;
 
+// ========================================
+// SAVE STUDY SESSION
+// ========================================
 
+async function saveStudySession(completed = false) {
+
+    if (!currentSession.startedAt) {
+        console.log("No active study session to save.");
+        return null;
+    }
+
+    // ========================================
+// CLOSE ACTIVE DISTRACTION
+// ========================================
+
+if (
+    isDistracted &&
+    distractionStartTime
+) {
+
+    const activeDistractionSeconds =
+        Math.floor(
+            (
+                Date.now() -
+                distractionStartTime
+            ) / 1000
+        );
+
+
+    currentSession.distractionSeconds +=
+        activeDistractionSeconds;
+
+
+    console.log(
+        "FINAL ACTIVE DISTRACTION:",
+        activeDistractionSeconds,
+        "seconds"
+    );
+
+
+    isDistracted =
+        false;
+
+
+    distractionStartTime =
+        null;
+    }
+
+    const endedAt = new Date();
+
+    const durationSeconds = Math.max(
+        0,
+        Math.floor(
+            (endedAt.getTime() - currentSession.startedAt.getTime()) / 1000
+        )
+    );
+
+    const distractionSeconds = Math.max(
+        0,
+        Math.min(currentSession.distractionSeconds, durationSeconds)
+    );
+
+    const focusedSeconds = Math.max(
+        0,
+        durationSeconds - distractionSeconds
+    );
+
+    try {
+
+        const result = await db.query(
+            `
+            INSERT INTO study_sessions
+            (
+                started_at,
+                ended_at,
+                duration_seconds,
+                focused_seconds,
+                distraction_seconds,
+                youtube_visits,
+                completed,
+                subject
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+            `,
+            [
+                currentSession.startedAt,
+                endedAt,
+                durationSeconds,
+                focusedSeconds,
+                distractionSeconds,
+                currentSession.youtubeVisits,
+                completed,
+                currentSession.subject
+            ]
+        );
+
+        console.log("================================");
+        console.log("STUDY SESSION SAVED");
+        console.log(result.rows[0]);
+        console.log("================================");
+
+        const savedSession = result.rows[0];
+
+        // Reset current session
+        currentSession = {
+            subject: null,
+            startedAt: null,
+            youtubeVisits: 0,
+            distractionSeconds: 0
+        };
+
+        return savedSession;
+
+    } catch (error) {
+
+        console.error("================================");
+        console.error("FAILED TO SAVE STUDY SESSION");
+        console.error(error);
+        console.error("================================");
+
+        return null;
+    }
+}
 // ========================================
 // CHARACTER POSITION
 // ========================================
@@ -1007,10 +1182,16 @@ async function monitorStudySession() {
             distractionStartTime =
                 Date.now();
 
+            currentSession.youtubeVisits += 1;
+
 
             console.log(
                 "DISTRACTION STARTED: YouTube"
             );
+
+            console.log("YOUTUBE VISIT:",
+                currentSession.youtubeVisits
+                );
 
 
             // YouTube = Confused
@@ -1083,27 +1264,69 @@ async function monitorStudySession() {
 
     if (isDistracted) {
 
+    console.log(
+        "USER RETURNED FROM DISTRACTION"
+    );
+
+
+    // ====================================
+    // CALCULATE DISTRACTION DURATION
+    // ====================================
+
+    if (distractionStartTime) {
+
+        const distractionDuration =
+            Math.floor(
+                (
+                    Date.now() -
+                    distractionStartTime
+                ) / 1000
+            );
+
+
+        currentSession.distractionSeconds +=
+            distractionDuration;
+
+
         console.log(
-            "USER RETURNED FROM DISTRACTION"
+            "DISTRACTION DURATION:",
+            distractionDuration,
+            "seconds"
         );
 
 
-        isDistracted =
-            false;
-
-        isSad =
-            false;
-
-        distractionStartTime =
-            null;
-
-
-        // Back to working
-
-        sendCharacterState(
-            "working"
+        console.log(
+            "TOTAL DISTRACTION:",
+            currentSession.distractionSeconds,
+            "seconds"
         );
 
+    }
+
+
+    // ====================================
+    // END DISTRACTION
+    // ====================================
+
+    isDistracted =
+        false;
+
+
+    isSad =
+        false;
+
+
+    distractionStartTime =
+        null;
+
+
+    // ====================================
+    // BACK TO WORKING
+    // ====================================
+
+    sendCharacterState(
+        "working"
+    );
     }
 }
 
@@ -1276,7 +1499,6 @@ ipcMain.on(
 // ========================================
 // STUDY SESSION START
 // ========================================
-
 ipcMain.on(
     "study-session-start",
     async () => {
@@ -1285,9 +1507,40 @@ ipcMain.on(
             "================================"
         );
 
+        console.log(
+        "SELECTED SUBJECT AT SESSION START:",
+            selectedSubject
+            );
+
+        // ====================================
+        // INITIALIZE DATABASE SESSION
+        // ====================================
+
+        currentSession.subject =
+            selectedSubject;
+
+        currentSession.startedAt =
+            new Date();
+
+        currentSession.youtubeVisits =
+            0;
+
+        currentSession.distractionSeconds =
+            0;
+
 
         console.log(
-            "STARTING STUDY SESSION..."
+            "DATABASE SESSION INITIALIZED"
+        );
+
+        console.log(
+            "Subject:",
+            currentSession.subject
+        );
+
+        console.log(
+            "Started at:",
+            currentSession.startedAt
         );
 
 
@@ -1371,7 +1624,9 @@ ipcMain.on(
         );
 
 
-        // Character starts working
+        // ====================================
+        // CHARACTER STARTS WORKING
+        // ====================================
 
         sendCharacterState(
             "working"
@@ -1380,14 +1635,39 @@ ipcMain.on(
     }
 );
 
-
 // ========================================
 // STUDY SESSION STOP
 // ========================================
 
 ipcMain.on(
     "study-session-stop",
-    () => {
+    async () => {
+
+        console.log(
+            "================================"
+        );
+
+        if (!currentSession.startedAt) {
+            console.log("No active study session to stop.");
+            return;
+        }
+
+        console.log(
+            "STUDY SESSION STOPPING"
+        );
+
+
+        // ====================================
+        // SAVE SESSION TO POSTGRESQL
+        // ====================================
+
+        const savedSession =
+            await saveStudySession(false);
+
+
+        // ====================================
+        // STOP ACTIVE SESSION TRACKING
+        // ====================================
 
         isStudySessionActive =
             false;
@@ -1417,9 +1697,31 @@ ipcMain.on(
             "STUDY SESSION STOPPED"
         );
 
+
+        // ====================================
+        // SEND SAVED SESSION TO FRONTEND
+        // ====================================
+
+        if (
+            savedSession &&
+            mainWindow &&
+            !mainWindow.isDestroyed()
+        ) {
+
+            mainWindow.webContents.send(
+                "session-stopped",
+                savedSession
+            );
+
+        }
+
+
+        console.log(
+            "================================"
+        );
+
     }
 );
-
 
 // ========================================
 // MAIN WINDOW CONTROLS
