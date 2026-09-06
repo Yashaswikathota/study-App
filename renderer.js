@@ -10,6 +10,8 @@ const enterButton =
 const laterButton =
   document.getElementById("laterButton");
 
+let isPaused = false;
+
 
 /* =========================================================
    START STUDYING
