@@ -60,6 +60,7 @@ let mainWindow = null;
 let timerWindow = null;
 let totoroWindow = null;
 let reportWindow = null;
+let analyticsWindow = null;
 
 
 // ========================================
@@ -122,7 +123,7 @@ async function saveStudySession(completed = false) {
         return null;
     }
 
-    // ========================================
+// ========================================
 // CLOSE ACTIVE DISTRACTION
 // ========================================
 
@@ -235,6 +236,134 @@ if (
         return null;
     }
 }
+
+// ========================================
+// GET STUDY ANALYTICS
+// ========================================
+
+async function getStudyAnalytics() {
+
+    try {
+
+        const result = await db.query(`
+            SELECT
+                id,
+                subject,
+                started_at,
+                ended_at,
+                duration_seconds,
+                focused_seconds,
+                distraction_seconds,
+                youtube_visits,
+                completed
+            FROM study_sessions
+            ORDER BY started_at DESC
+            LIMIT 50
+        `);
+
+        const sessions = result.rows;
+
+        let totalSeconds = 0;
+        let focusedSeconds = 0;
+        let distractionSeconds = 0;
+        let youtubeVisits = 0;
+
+        for (const session of sessions) {
+
+            totalSeconds += Number(
+                session.duration_seconds || 0
+            );
+
+            focusedSeconds += Number(
+                session.focused_seconds || 0
+            );
+
+            distractionSeconds += Number(
+                session.distraction_seconds || 0
+            );
+
+            youtubeVisits += Number(
+                session.youtube_visits || 0
+            );
+        }
+
+        const focusScore =
+            totalSeconds > 0
+                ? Math.round(
+                    (focusedSeconds / totalSeconds) * 100
+                )
+                : 0;
+
+        return {
+            totals: {
+                totalSeconds,
+                focusedSeconds,
+                distractionSeconds,
+                youtubeVisits,
+                focusScore
+            },
+            sessions
+        };
+
+    } catch (error) {
+
+        console.error(
+            "FAILED TO LOAD ANALYTICS:",
+            error
+        );
+
+        return {
+            totals: {
+                totalSeconds: 0,
+                focusedSeconds: 0,
+                distractionSeconds: 0,
+                youtubeVisits: 0,
+                focusScore: 0
+            },
+            sessions: []
+        };
+    }
+}
+
+
+// ========================================
+// ANALYTICS DATA REQUEST
+// ========================================
+
+ipcMain.handle(
+    "get-study-analytics",
+    async () => {
+
+        console.log(
+            "ANALYTICS DATA REQUESTED"
+        );
+
+        return await getStudyAnalytics();
+    }
+);
+
+
+// ========================================
+// OPEN ANALYTICS WINDOW
+// ========================================
+
+console.log(
+    "========== REGISTERING ANALYTICS =========="
+);
+
+ipcMain.on(
+    "open-analytics",
+    () => {
+
+        console.log(
+            "========== OPEN ANALYTICS RECEIVED =========="
+        );
+
+        createAnalyticsWindow();
+    }
+);
+
+
 // ========================================
 // CHARACTER POSITION
 // ========================================
@@ -541,6 +670,8 @@ function createMainWindow() {
             "index.html"
         )
     );
+
+    mainWindow.webContents.openDevTools();
 
 
     mainWindow.once(
@@ -1934,6 +2065,130 @@ ipcMain.on(
 
     }
 );
+
+// ========================================
+// CREATE ANALYTICS WINDOW
+// ========================================
+
+function createAnalyticsWindow() {
+
+    // If already open, focus it
+    if (
+        analyticsWindow &&
+        !analyticsWindow.isDestroyed()
+    ) {
+
+        analyticsWindow.show();
+        analyticsWindow.focus();
+
+        return;
+    }
+
+
+    const display =
+        screen.getPrimaryDisplay();
+
+    const workArea =
+        display.workArea;
+
+
+    const analyticsWidth = 900;
+    const analyticsHeight = 700;
+
+
+    const analyticsX =
+        workArea.x +
+        (
+            workArea.width -
+            analyticsWidth
+        ) / 2;
+
+
+    const analyticsY =
+        workArea.y +
+        (
+            workArea.height -
+            analyticsHeight
+        ) / 2;
+
+
+    analyticsWindow =
+        new BrowserWindow({
+
+            x: Math.round(analyticsX),
+
+            y: Math.round(analyticsY),
+
+            width: analyticsWidth,
+
+            height: analyticsHeight,
+
+            minWidth: 750,
+
+            minHeight: 600,
+
+            frame: false,
+
+            transparent: true,
+
+            backgroundColor:
+                "#00000000",
+
+            show: false,
+
+            hasShadow: false,
+
+            resizable: true,
+
+            movable: true,
+
+            skipTaskbar: false,
+
+            webPreferences: {
+
+                contextIsolation: false,
+
+                nodeIntegration: true
+
+            }
+
+        });
+
+
+    analyticsWindow.loadFile(
+        path.join(
+            __dirname,
+            "analytics.html"
+        )
+    );
+
+
+    analyticsWindow.once(
+        "ready-to-show",
+        () => {
+
+            console.log(
+                "ANALYTICS WINDOW READY"
+            );
+
+            analyticsWindow.show();
+
+            analyticsWindow.focus();
+
+        }
+    );
+
+
+    analyticsWindow.on(
+        "closed",
+        () => {
+
+            analyticsWindow = null;
+
+        }
+    );
+
+}
 
 // ========================================
 // MAIN WINDOW CONTROLS

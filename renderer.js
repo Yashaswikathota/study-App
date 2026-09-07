@@ -147,31 +147,37 @@ document
   .querySelectorAll(".nav-item")
   .forEach((item) => {
 
-    item.addEventListener(
-      "click",
-      () => {
+    item.addEventListener("click", () => {
 
-        document
-          .querySelectorAll(".nav-item")
-          .forEach((nav) => {
+      const page = item.textContent.trim();
 
-            nav.classList.remove(
-              "active"
-            );
+      console.log("NAV CLICK:", page);
 
-          });
+      // Active navigation state
+      document
+        .querySelectorAll(".nav-item")
+        .forEach((nav) => {
+          nav.classList.remove("active");
+        });
+
+      item.classList.add("active");
 
 
-        item.classList.add(
-          "active"
-        );
+      // =====================================================
+      // ANALYTICS
+      // =====================================================
+
+      if (page === "Analytics") {
+
+        console.log("ANALYTICS BUTTON CLICKED");
+
+        window.studyApi.openAnalytics();
 
       }
-    );
+
+    });
 
   });
-
-
 // =========================================================
 // ELECTRON WINDOW CONTROLS
 // =========================================================

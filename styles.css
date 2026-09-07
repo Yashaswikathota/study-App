@@ -280,8 +280,7 @@ body {
 
   padding: 8px 0;
 
-  color:
-    rgba(0, 0, 0, 0.45);
+  color: rgba(0, 0, 0, 0.45);
 
   font-family: inherit;
 
@@ -289,8 +288,12 @@ body {
 
   cursor: pointer;
 
-  transition:
-    color 160ms ease;
+  transition: color 160ms ease;
+
+  /* IMPORTANT FOR FRAMELESS ELECTRON */
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+  z-index: 100;
 }
 
 

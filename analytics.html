@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Study Analytics</title>
+
+    <link
+        rel="stylesheet"
+        href="./analytics.css"
+    >
+</head>
+
+<body>
+
+    <main class="analytics-window">
+
+        <!-- ============================= -->
+        <!-- HEADER -->
+        <!-- ============================= -->
+
+        <header class="analytics-header">
+
+            <div>
+
+                <div class="eyebrow">
+                    STUDY ANALYTICS
+                </div>
+
+                <h1>
+                    Your progress
+                </h1>
+
+                <p>
+                    See how you're spending your study time.
+                </p>
+
+            </div>
+
+            <button
+                id="closeAnalytics"
+                class="close-button"
+            >
+                ×
+            </button>
+
+        </header>
+
+
+        <!-- ============================= -->
+        <!-- OVERVIEW -->
+        <!-- ============================= -->
+
+        <section class="overview">
+
+            <div class="overview-card primary">
+
+                <span class="card-label">
+                    Total Study
+                </span>
+
+                <strong
+                    id="totalStudy"
+                    class="card-value"
+                >
+                    0m
+                </strong>
+
+                <span class="card-description">
+                    Across your sessions
+                </span>
+
+            </div>
+
+
+            <div class="overview-card">
+
+                <span class="card-label">
+                    Focused
+                </span>
+
+                <strong
+                    id="focusedTime"
+                    class="card-value"
+                >
+                    0m
+                </strong>
+
+                <span class="card-description">
+                    Productive time
+                </span>
+
+            </div>
+
+
+            <div class="overview-card">
+
+                <span class="card-label">
+                    Distracted
+                </span>
+
+                <strong
+                    id="distractedTime"
+                    class="card-value"
+                >
+                    0m
+                </strong>
+
+                <span class="card-description">
+                    Time away from focus
+                </span>
+
+            </div>
+
+
+            <div class="overview-card">
+
+                <span class="card-label">
+                    YouTube
+                </span>
+
+                <strong
+                    id="youtubeVisits"
+                    class="card-value"
+                >
+                    0
+                </strong>
+
+                <span class="card-description">
+                    Distraction visits
+                </span>
+
+            </div>
+
+        </section>
+
+
+        <!-- ============================= -->
+        <!-- FOCUS SCORE -->
+        <!-- ============================= -->
+
+        <section class="focus-section">
+
+            <div class="section-header">
+
+                <div>
+
+                    <span class="section-eyebrow">
+                        OVERALL PERFORMANCE
+                    </span>
+
+                    <h2>
+                        Focus Score
+                    </h2>
+
+                </div>
+
+                <span
+                    id="focusScore"
+                    class="focus-score"
+                >
+                    0%
+                </span>
+
+            </div>
+
+
+            <div class="progress-track">
+
+                <div
+                    id="focusProgress"
+                    class="progress-bar"
+                ></div>
+
+            </div>
+
+
+            <p
+                id="focusMessage"
+                class="focus-message"
+            >
+                Start a study session to build your focus score.
+            </p>
+
+        </section>
+
+
+        <!-- ============================= -->
+        <!-- RECENT SESSIONS -->
+        <!-- ============================= -->
+
+        <section class="sessions-section">
+
+            <div class="section-header">
+
+                <div>
+
+                    <span class="section-eyebrow">
+                        HISTORY
+                    </span>
+
+                    <h2>
+                        Recent Sessions
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="sessionsList"
+                class="sessions-list"
+            >
+
+                <div class="empty-state">
+
+                    <span>
+                        No study sessions yet.
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+
+    <script src="./analytics.js"></script>
+
+</body>
+
+</html>

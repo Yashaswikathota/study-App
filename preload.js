@@ -35,6 +35,16 @@ contextBridge.exposeInMainWorld("studyApi", {
             subject
         );
 
+    },
+
+    openAnalytics() {
+
+        console.log("PRELOAD: OPEN ANALYTICS");
+
+        ipcRenderer.send(
+            "open-analytics"
+        );
+
     }
 
 });
