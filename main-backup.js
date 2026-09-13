@@ -299,19 +299,16 @@ function isOurApplication(activeWindow) {
 // ========================================
 // IS THIS YOUTUBE?
 // ========================================
-
 function isYouTube(activeWindow) {
 
     if (!activeWindow) {
-
         return false;
-
     }
 
 
-    // ====================================
-    // CHECK URL
-    // ====================================
+    // ========================================
+    // CHECK URL IF AVAILABLE
+    // ========================================
 
     const url =
         activeWindow.url;
@@ -334,41 +331,36 @@ function isYouTube(activeWindow) {
             ) {
 
                 return true;
-
             }
 
-        }
-
-        catch {
+        } catch {
 
             // Continue and check title
-
         }
-
     }
 
 
-    // ====================================
+    // ========================================
     // CHECK WINDOW TITLE
-    // ====================================
+    // ========================================
 
     const title =
         activeWindow.title || "";
 
 
+    const lowerTitle =
+        title.toLowerCase();
+
+
     if (
-        title
-            .toLowerCase()
-            .includes("youtube")
+        lowerTitle.includes("youtube")
     ) {
 
         return true;
-
     }
 
 
     return false;
-
 }
 
 

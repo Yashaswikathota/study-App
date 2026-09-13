@@ -7,6 +7,7 @@ const {
 
 const path = require("node:path");
 const fs = require("node:fs");
+const { execFile } = require("node:child_process");
 
 require("dotenv").config();
 
@@ -89,7 +90,8 @@ const characterPositionFile = path.join(
 // ACTIVE WINDOW DETECTION
 // ========================================
 
-let getActiveWindow = null;
+
+let isCheckingActiveWindow = false;
 
 
 // ========================================
@@ -671,7 +673,6 @@ function createMainWindow() {
         )
     );
 
-    mainWindow.webContents.openDevTools();
 
 
     mainWindow.once(
@@ -1135,59 +1136,96 @@ function createTotoroWindow() {
 // ========================================
 // GET ACTIVE APPLICATION
 // ========================================
-
 async function getActiveApplication() {
 
-    try {
+    return new Promise((resolve) => {
 
-        if (!getActiveWindow) {
+        execFile(
+            "osascript",
+            [
+                "-e",
+                `
+                tell application "System Events"
+                    set frontApp to first application process whose frontmost is true
+                    set appName to name of frontApp
+                    set windowTitle to ""
+                    
+                    try
+                        set windowTitle to name of front window of frontApp
+                    end try
+                    
+                    return appName & "|||" & windowTitle
+                end tell
+                `
+            ],
+            {
+                timeout: 2000
+            },
+            (error, stdout) => {
 
-            const module =
-                await import(
-                    "get-windows"
+                if (error) {
+
+                    console.log(
+                        "ACTIVE APPLICATION ERROR:",
+                        error.message
+                    );
+
+                    resolve(null);
+                    return;
+                }
+
+
+                const output =
+                    stdout.trim();
+
+
+                if (!output) {
+
+                    console.log(
+                        "NO ACTIVE APPLICATION FOUND"
+                    );
+
+                    resolve(null);
+                    return;
+                }
+
+
+                const parts =
+                    output.split("|||");
+
+
+                const app =
+                    parts[0]?.trim() || null;
+
+
+                const title =
+                    parts.slice(1)
+                        .join("|||")
+                        .trim() || null;
+
+
+                const result = {
+
+                    app,
+                    title,
+                    url: null
+
+                };
+
+
+                console.log(
+                    "ACTIVE APPLICATION:",
+                    result
                 );
 
-            getActiveWindow =
-                module.activeWindow;
-        }
 
+                resolve(result);
 
-        const activeWindow =
-            await getActiveWindow();
-
-
-        if (!activeWindow) {
-
-            return null;
-        }
-
-
-        return {
-
-            app:
-                activeWindow.owner.name,
-
-            title:
-                activeWindow.title,
-
-            url:
-                activeWindow.url ||
-                null
-        };
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Active application detection failed:",
-            error
+            }
         );
 
-        return null;
-    }
+    });
 }
-
 
 // ========================================
 // IS THIS OUR ELECTRON APP?
@@ -1331,169 +1369,84 @@ function sendCharacterState(
 
 async function monitorStudySession() {
 
-    const activeWindow =
-        await getActiveApplication();
-
-
-    if (!activeWindow) {
-
-        return;
-    }
-
-
-    // ========================================
-    // ALWAYS REMEMBER LAST NON-ELECTRON APP
-    // ========================================
-
-    if (
-        !isOurApplication(
-            activeWindow
-        )
-    ) {
-
-        lastNonElectronApplication =
-            activeWindow;
-
-    }
-
-
-    // ========================================
-    // IGNORE OUR ELECTRON WINDOWS
-    // ========================================
-
-    if (
-        isOurApplication(
-            activeWindow
-        )
-    ) {
-
-        return;
-    }
-
-
-    const appName =
-        activeWindow.app;
-
-    const title =
-        activeWindow.title;
-
-    const url =
-        activeWindow.url;
-
-
-    currentApplication =
-        activeWindow;
-
-
-    // ========================================
-    // LOG CURRENT APPLICATION
-    // ========================================
-
     console.log(
-        "--------------------------------"
+        "MONITOR CHECK:",
+        new Date().toISOString()
     );
 
 
-    console.log(
-        "Active app:",
-        appName
-    );
+    // ========================================
+    // PREVENT OVERLAPPING ACTIVE WINDOW CHECKS
+    // ========================================
 
-
-    console.log(
-        "Window:",
-        title
-    );
-
-
-    if (url) {
+    if (isCheckingActiveWindow) {
 
         console.log(
-            "URL:",
-            url
+            "ACTIVE WINDOW CHECK ALREADY RUNNING"
         );
-
-    }
-
-
-    // ========================================
-    // DON'T CHECK DISTRACTION
-    // BEFORE TIMER STARTS
-    // ========================================
-
-    if (
-        !isStudySessionActive
-    ) {
 
         return;
     }
 
 
-    // ========================================
-    // CHECK YOUTUBE
-    // ========================================
-
-    const watchingYouTube =
-        isYouTube(
-            activeWindow
-        );
+    isCheckingActiveWindow = true;
 
 
-    console.log(
-        "IS YOUTUBE:",
-        watchingYouTube
-    );
+    try {
+
+        const activeWindow =
+            await getActiveApplication();
 
 
-    // ========================================
-    // USER IS ON YOUTUBE
-    // ========================================
+        if (!activeWindow) {
 
-    if (watchingYouTube) {
-
-        // -------------------------------
-        // DISTRACTION JUST STARTED
-        // -------------------------------
-
-        if (!isDistracted) {
-
-            isDistracted =
-                true;
-
-            isSad =
-                false;
-
-            distractionStartTime =
-                Date.now();
-
-            currentSession.youtubeVisits += 1;
+            return;
+        }
 
 
-            console.log(
-                "DISTRACTION STARTED: YouTube"
-            );
+        // ========================================
+        // ALWAYS REMEMBER LAST NON-ELECTRON APP
+        // ========================================
 
-            console.log("YOUTUBE VISIT:",
-                currentSession.youtubeVisits
-                );
+        if (
+            !isOurApplication(
+                activeWindow
+            )
+        ) {
 
-
-            // YouTube = Confused
-
-            sendCharacterState(
-                "confused"
-            );
+            lastNonElectronApplication =
+                activeWindow;
 
         }
 
 
-        // -------------------------------
-        // ALREADY DISTRACTED
-        // -------------------------------
+        // ========================================
+        // HANDLE RETURN TO OUR ELECTRON APP
+        // ========================================
 
-        else {
+        if (
+            isOurApplication(
+                activeWindow
+                            )
+            ) {
 
-            const distractionSeconds =
+            if (
+                isStudySessionActive &&
+                isDistracted
+                ) {
+
+            console.log(
+            "USER RETURNED FROM DISTRACTION"
+        );
+
+
+        // ====================================
+        // CALCULATE DISTRACTION DURATION
+        // ====================================
+
+        if (distractionStartTime) {
+
+            const distractionDuration =
                 Math.floor(
                     (
                         Date.now() -
@@ -1502,118 +1455,310 @@ async function monitorStudySession() {
                 );
 
 
+            currentSession.distractionSeconds +=
+                distractionDuration;
+
+
             console.log(
-                "YouTube distraction:",
-                distractionSeconds,
+                "DISTRACTION DURATION:",
+                distractionDuration,
                 "seconds"
             );
 
 
-            // =================================
-            // 5 MINUTES
-            // =================================
-
-            if (
-                distractionSeconds >= 300 &&
-                !isSad
-            ) {
-
-                isSad =
-                    true;
-
-
-                console.log(
-                    "DISTRACTION REACHED 5 MINUTES"
-                );
-
-
-                // YouTube for 5 minutes = Sad
-
-                sendCharacterState(
-                    "sad"
-                );
-
-            }
+            console.log(
+                "TOTAL DISTRACTION:",
+                currentSession.distractionSeconds,
+                "seconds"
+            );
 
         }
 
 
-        return;
+        // ====================================
+        // END DISTRACTION
+        // ====================================
+
+        isDistracted =
+            false;
+
+        isSad =
+            false;
+
+        distractionStartTime =
+            null;
+
+
+        // ====================================
+        // BACK TO WORKING
+        // ====================================
+
+        sendCharacterState(
+            "working"
+        );
+
+       }
+
+       return;
     }
 
+        const appName =
+            activeWindow.app;
 
-    // ========================================
-    // USER LEFT YOUTUBE
-    // ========================================
+        const title =
+            activeWindow.title;
 
-    if (isDistracted) {
-
-    console.log(
-        "USER RETURNED FROM DISTRACTION"
-    );
+        const url =
+            activeWindow.url;
 
 
-    // ====================================
-    // CALCULATE DISTRACTION DURATION
-    // ====================================
+        currentApplication =
+            activeWindow;
 
-    if (distractionStartTime) {
 
-        const distractionDuration =
-            Math.floor(
-                (
-                    Date.now() -
-                    distractionStartTime
-                ) / 1000
+        // ========================================
+        // LOG CURRENT APPLICATION
+        // ========================================
+
+        console.log(
+            "--------------------------------"
+        );
+
+
+        console.log(
+            "Active app:",
+            appName
+        );
+
+
+        console.log(
+            "Window:",
+            title
+        );
+
+
+        if (url) {
+
+            console.log(
+                "URL:",
+                url
+            );
+
+        }
+
+
+        // ========================================
+        // DON'T CHECK DISTRACTION
+        // BEFORE TIMER STARTS
+        // ========================================
+
+        if (
+            !isStudySessionActive
+        ) {
+
+            return;
+        }
+
+
+        // ========================================
+        // CHECK YOUTUBE
+        // ========================================
+
+        const watchingYouTube =
+            isYouTube(
+                activeWindow
             );
 
 
-        currentSession.distractionSeconds +=
-            distractionDuration;
-
-
         console.log(
-            "DISTRACTION DURATION:",
-            distractionDuration,
-            "seconds"
+            "IS YOUTUBE:",
+            watchingYouTube
         );
 
 
-        console.log(
-            "TOTAL DISTRACTION:",
-            currentSession.distractionSeconds,
-            "seconds"
-        );
+        // ========================================
+        // USER IS ON YOUTUBE
+        // ========================================
+
+        if (watchingYouTube) {
+
+            // -------------------------------
+            // DISTRACTION JUST STARTED
+            // -------------------------------
+
+            if (!isDistracted) {
+
+                isDistracted =
+                    true;
+
+                isSad =
+                    false;
+
+                distractionStartTime =
+                    Date.now();
+
+                currentSession.youtubeVisits += 1;
+
+
+                console.log(
+                    "DISTRACTION STARTED: YouTube"
+                );
+
+
+                console.log(
+                    "YOUTUBE VISIT:",
+                    currentSession.youtubeVisits
+                );
+
+
+                // YouTube = Confused
+
+                sendCharacterState(
+                    "confused"
+                );
+
+            }
+
+
+            // -------------------------------
+            // ALREADY DISTRACTED
+            // -------------------------------
+
+            else {
+
+                const distractionSeconds =
+                    Math.floor(
+                        (
+                            Date.now() -
+                            distractionStartTime
+                        ) / 1000
+                    );
+
+
+                console.log(
+                    "YouTube distraction:",
+                    distractionSeconds,
+                    "seconds"
+                );
+
+
+                // =================================
+                // 5 MINUTES
+                // =================================
+
+                if (
+                    distractionSeconds >= 300 &&
+                    !isSad
+                ) {
+
+                    isSad =
+                        true;
+
+
+                    console.log(
+                        "DISTRACTION REACHED 5 MINUTES"
+                    );
+
+
+                    // YouTube for 5 minutes = Sad
+
+                    sendCharacterState(
+                        "sad"
+                    );
+
+                }
+
+            }
+
+
+            return;
+        }
+
+
+        // ========================================
+        // USER LEFT YOUTUBE
+        // ========================================
+
+        if (isDistracted) {
+
+            console.log(
+                "USER RETURNED FROM DISTRACTION"
+            );
+
+
+            // ====================================
+            // CALCULATE DISTRACTION DURATION
+            // ====================================
+
+            if (distractionStartTime) {
+
+                const distractionDuration =
+                    Math.floor(
+                        (
+                            Date.now() -
+                            distractionStartTime
+                        ) / 1000
+                    );
+
+
+                currentSession.distractionSeconds +=
+                    distractionDuration;
+
+
+                console.log(
+                    "DISTRACTION DURATION:",
+                    distractionDuration,
+                    "seconds"
+                );
+
+
+                console.log(
+                    "TOTAL DISTRACTION:",
+                    currentSession.distractionSeconds,
+                    "seconds"
+                );
+
+            }
+
+
+            // ====================================
+            // END DISTRACTION
+            // ====================================
+
+            isDistracted =
+                false;
+
+
+            isSad =
+                false;
+
+
+            distractionStartTime =
+                null;
+
+
+            // ====================================
+            // BACK TO WORKING
+            // ====================================
+
+            sendCharacterState(
+                "working"
+            );
+
+        }
+
+    } finally {
+
+        // ========================================
+        // ALWAYS RELEASE THE LOCK
+        // ========================================
+
+        isCheckingActiveWindow =
+            false;
 
     }
 
-
-    // ====================================
-    // END DISTRACTION
-    // ====================================
-
-    isDistracted =
-        false;
-
-
-    isSad =
-        false;
-
-
-    distractionStartTime =
-        null;
-
-
-    // ====================================
-    // BACK TO WORKING
-    // ====================================
-
-    sendCharacterState(
-        "working"
-    );
-    }
 }
-
 
 // ========================================
 // APP READY
