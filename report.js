@@ -84,22 +84,22 @@ ipcRenderer.on(
 
         const duration =
             Number(
-                session.duration_seconds || 0
+        session.durationSeconds || 0
             );
 
         const focused =
             Number(
-                session.focused_seconds || 0
+        session.focusedSeconds || 0
             );
 
         const distracted =
             Number(
-                session.distraction_seconds || 0
+        session.distractionSeconds || 0
             );
 
         const youtube =
             Number(
-                session.youtube_visits || 0
+        session.youtubeVisits || 0
             );
 
 

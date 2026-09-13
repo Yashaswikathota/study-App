@@ -11,45 +11,6 @@ const { execFile } = require("node:child_process");
 
 require("dotenv").config();
 
-const { Pool } = require("pg");
-
-// ========================================
-// POSTGRESQL CONNECTION
-// ========================================
-
-const db = new Pool({
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT || 5432),
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD
-});
-
-
-// ========================================
-// TEST DATABASE CONNECTION
-// ========================================
-
-db.connect()
-    .then((client) => {
-
-        console.log("================================");
-        console.log("POSTGRESQL CONNECTED");
-        console.log("Database:", process.env.DB_NAME);
-        console.log("================================");
-
-        client.release();
-
-    })
-    .catch((error) => {
-
-        console.error("================================");
-        console.error("POSTGRESQL CONNECTION FAILED");
-        console.error(error.message);
-        console.error("================================");
-
-    });
-
 app.disableHardwareAcceleration();
 
 
@@ -125,41 +86,34 @@ async function saveStudySession(completed = false) {
         return null;
     }
 
-// ========================================
-// CLOSE ACTIVE DISTRACTION
-// ========================================
+    // ========================================
+    // CLOSE ACTIVE DISTRACTION
+    // ========================================
 
-if (
-    isDistracted &&
-    distractionStartTime
-) {
+    if (
+        isDistracted &&
+        distractionStartTime
+    ) {
 
-    const activeDistractionSeconds =
-        Math.floor(
-            (
-                Date.now() -
-                distractionStartTime
-            ) / 1000
+        const activeDistractionSeconds =
+            Math.floor(
+                (
+                    Date.now() -
+                    distractionStartTime
+                ) / 1000
+            );
+
+        currentSession.distractionSeconds +=
+            activeDistractionSeconds;
+
+        console.log(
+            "FINAL ACTIVE DISTRACTION:",
+            activeDistractionSeconds,
+            "seconds"
         );
 
-
-    currentSession.distractionSeconds +=
-        activeDistractionSeconds;
-
-
-    console.log(
-        "FINAL ACTIVE DISTRACTION:",
-        activeDistractionSeconds,
-        "seconds"
-    );
-
-
-    isDistracted =
-        false;
-
-
-    distractionStartTime =
-        null;
+        isDistracted = false;
+        distractionStartTime = null;
     }
 
     const endedAt = new Date();
@@ -167,13 +121,19 @@ if (
     const durationSeconds = Math.max(
         0,
         Math.floor(
-            (endedAt.getTime() - currentSession.startedAt.getTime()) / 1000
+            (
+                endedAt.getTime() -
+                currentSession.startedAt.getTime()
+            ) / 1000
         )
     );
 
     const distractionSeconds = Math.max(
         0,
-        Math.min(currentSession.distractionSeconds, durationSeconds)
+        Math.min(
+            currentSession.distractionSeconds,
+            durationSeconds
+        )
     );
 
     const focusedSeconds = Math.max(
@@ -183,43 +143,43 @@ if (
 
     try {
 
-        const result = await db.query(
-            `
-            INSERT INTO study_sessions
-            (
-                started_at,
-                ended_at,
-                duration_seconds,
-                focused_seconds,
-                distraction_seconds,
-                youtube_visits,
-                completed,
-                subject
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING *
-            `,
-            [
-                currentSession.startedAt,
-                endedAt,
-                durationSeconds,
-                focusedSeconds,
-                distractionSeconds,
-                currentSession.youtubeVisits,
-                completed,
-                currentSession.subject
-            ]
+        console.log("SAVING SESSION THROUGH JAVA BACKEND...");
+
+        const response = await fetch(
+            "http://localhost:8080/api/study-sessions/stop",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    sessionId: currentSession.id,
+                    durationSeconds: durationSeconds,
+                    distractionSeconds: distractionSeconds,
+                    youtubeVisits: currentSession.youtubeVisits
+                })
+            }
         );
 
-        console.log("================================");
-        console.log("STUDY SESSION SAVED");
-        console.log(result.rows[0]);
-        console.log("================================");
+        if (!response.ok) {
+            throw new Error(
+                `Java backend returned HTTP ${response.status}`
+            );
+        }
 
-        const savedSession = result.rows[0];
+        const savedSession =
+            await response.json();
+
+        console.log("================================");
+        console.log("STUDY SESSION SAVED THROUGH JAVA");
+        console.log(savedSession);
+        console.log("================================");
 
         // Reset current session
         currentSession = {
+            id: null,
             subject: null,
             startedAt: null,
             youtubeVisits: 0,
@@ -231,7 +191,7 @@ if (
     } catch (error) {
 
         console.error("================================");
-        console.error("FAILED TO SAVE STUDY SESSION");
+        console.error("FAILED TO SAVE STUDY SESSION THROUGH JAVA");
         console.error(error);
         console.error("================================");
 
@@ -242,76 +202,55 @@ if (
 // ========================================
 // GET STUDY ANALYTICS
 // ========================================
-
 async function getStudyAnalytics() {
 
     try {
 
-        const result = await db.query(`
-            SELECT
-                id,
-                subject,
-                started_at,
-                ended_at,
-                duration_seconds,
-                focused_seconds,
-                distraction_seconds,
-                youtube_visits,
-                completed
-            FROM study_sessions
-            ORDER BY started_at DESC
-            LIMIT 50
-        `);
+        console.log(
+            "GETTING STUDY ANALYTICS THROUGH JAVA..."
+        );
 
-        const sessions = result.rows;
+        const response = await fetch(
+            "http://localhost:8080/api/analytics"
+        );
 
-        let totalSeconds = 0;
-        let focusedSeconds = 0;
-        let distractionSeconds = 0;
-        let youtubeVisits = 0;
+        if (!response.ok) {
 
-        for (const session of sessions) {
-
-            totalSeconds += Number(
-                session.duration_seconds || 0
+            throw new Error(
+                `Java backend returned HTTP ${response.status}`
             );
 
-            focusedSeconds += Number(
-                session.focused_seconds || 0
-            );
-
-            distractionSeconds += Number(
-                session.distraction_seconds || 0
-            );
-
-            youtubeVisits += Number(
-                session.youtube_visits || 0
-            );
         }
 
-        const focusScore =
-            totalSeconds > 0
-                ? Math.round(
-                    (focusedSeconds / totalSeconds) * 100
-                )
-                : 0;
+        const analytics =
+            await response.json();
 
-        return {
-            totals: {
-                totalSeconds,
-                focusedSeconds,
-                distractionSeconds,
-                youtubeVisits,
-                focusScore
-            },
-            sessions
-        };
+        console.log(
+            "JAVA ANALYTICS RECEIVED:"
+        );
+
+        console.log(
+            analytics
+        );
+
+        return analytics;
 
     } catch (error) {
 
         console.error(
-            "FAILED TO LOAD ANALYTICS:",
+            "================================"
+        );
+
+        console.error(
+            "FAILED TO GET ANALYTICS THROUGH JAVA"
+        );
+
+        console.error(
             error
+        );
+
+        console.error(
+            "================================"
         );
 
         return {
@@ -326,8 +265,6 @@ async function getStudyAnalytics() {
         };
     }
 }
-
-
 // ========================================
 // ANALYTICS DATA REQUEST
 // ========================================
@@ -1937,40 +1874,114 @@ ipcMain.on(
         );
 
         console.log(
-        "SELECTED SUBJECT AT SESSION START:",
+            "SELECTED SUBJECT AT SESSION START:",
             selectedSubject
+        );
+
+        // ====================================
+        // CREATE DATABASE SESSION THROUGH JAVA
+        // ====================================
+
+        try {
+
+            console.log(
+                "CREATING STUDY SESSION THROUGH JAVA..."
             );
 
-        // ====================================
-        // INITIALIZE DATABASE SESSION
-        // ====================================
+            const response = await fetch(
+                "http://localhost:8080/api/study-sessions/start",
+                {
+                    method: "POST",
 
-        currentSession.subject =
-            selectedSubject;
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
 
-        currentSession.startedAt =
-            new Date();
+                    body: JSON.stringify({
+                        subject: selectedSubject
+                    })
+                }
+            );
 
-        currentSession.youtubeVisits =
-            0;
+            if (!response.ok) {
 
-        currentSession.distractionSeconds =
-            0;
+                throw new Error(
+                    `Java backend returned HTTP ${response.status}`
+                );
 
+            }
 
-        console.log(
-            "DATABASE SESSION INITIALIZED"
-        );
+            const javaSession =
+                await response.json();
 
-        console.log(
-            "Subject:",
-            currentSession.subject
-        );
+            console.log(
+                "JAVA SESSION CREATED:"
+            );
 
-        console.log(
-            "Started at:",
-            currentSession.startedAt
-        );
+            console.log(
+                javaSession
+            );
+
+            // ====================================
+            // INITIALIZE LOCAL SESSION
+            // ====================================
+
+            currentSession.id =
+                javaSession.id;
+
+            currentSession.subject =
+                selectedSubject;
+
+            currentSession.startedAt =
+                new Date(
+                    javaSession.startedAt
+                );
+
+            currentSession.youtubeVisits =
+                0;
+
+            currentSession.distractionSeconds =
+                0;
+
+            console.log(
+                "DATABASE SESSION INITIALIZED THROUGH JAVA"
+            );
+
+            console.log(
+                "Session ID:",
+                currentSession.id
+            );
+
+            console.log(
+                "Subject:",
+                currentSession.subject
+            );
+
+            console.log(
+                "Started at:",
+                currentSession.startedAt
+            );
+
+        } catch (error) {
+
+            console.error(
+                "================================"
+            );
+
+            console.error(
+                "FAILED TO CREATE SESSION THROUGH JAVA"
+            );
+
+            console.error(
+                error
+            );
+
+            console.error(
+                "================================"
+            );
+
+            return;
+        }
 
 
         // ====================================
@@ -1998,22 +2009,17 @@ ipcMain.on(
         baselineApplication =
             startingApplication;
 
-
         currentApplication =
             startingApplication;
-
 
         isStudySessionActive =
             true;
 
-
         isDistracted =
             false;
 
-
         isSad =
             false;
-
 
         distractionStartTime =
             null;
@@ -2063,7 +2069,6 @@ ipcMain.on(
 
     }
 );
-
 // ========================================
 // STUDY SESSION STOP
 // ========================================

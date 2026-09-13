@@ -302,8 +302,12 @@ async function loadAnalytics() {
 
 
         console.log(
-            "ANALYTICS DATA:",
-            analytics
+            "ANALYTICS DATA FROM JAVA:",
+            JSON.stringify(
+                analytics,
+                null,
+                2
+            )
         );
 
 
