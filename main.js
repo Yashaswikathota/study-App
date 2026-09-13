@@ -9,8 +9,6 @@ const path = require("node:path");
 const fs = require("node:fs");
 const { execFile } = require("node:child_process");
 
-require("dotenv").config();
-
 app.disableHardwareAcceleration();
 
 
@@ -2092,7 +2090,7 @@ ipcMain.on(
 
 
         // ====================================
-        // SAVE SESSION TO POSTGRESQL
+        // SAVE SESSION THROUGH JAVA BACKEND
         // ====================================
 
         const savedSession =
