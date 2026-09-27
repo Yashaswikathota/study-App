@@ -1,10 +1,12 @@
 package com.studycompanion.demo.controller;
 
+import com.studycompanion.demo.dto.ActivityRequest;
 import com.studycompanion.demo.dto.StartSessionRequest;
+import com.studycompanion.demo.dto.StopSessionRequest;
 import com.studycompanion.demo.entity.StudySession;
+import com.studycompanion.demo.exception.StudySessionNotFoundException;
 import com.studycompanion.demo.service.StudySessionService;
 import org.springframework.web.bind.annotation.*;
-import com.studycompanion.demo.dto.StopSessionRequest;
 
 import java.util.List;
 
@@ -30,7 +32,7 @@ public class StudySessionController {
         return studySessionService
                 .getSessionById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Study session not found"));
+                        new StudySessionNotFoundException(id));
     }
 
     @PostMapping("/start")
@@ -44,13 +46,23 @@ public class StudySessionController {
 
     @PostMapping("/stop")
     public StudySession stopSession(
-        @RequestBody StopSessionRequest request) {
+            @RequestBody StopSessionRequest request) {
 
         return studySessionService.stopSession(
-            request.getSessionId(),
-            request.getDurationSeconds(),
-            request.getDistractionSeconds(),
-            request.getYoutubeVisits()
+                request.getSessionId(),
+                request.getDurationSeconds(),
+                request.getDistractionSeconds()
+        );
+    }
+
+    @PostMapping("/{id}/activity")
+    public StudySession recordActivity(
+            @PathVariable Integer id,
+            @RequestBody ActivityRequest request) {
+
+        return studySessionService.recordActivity(
+                id,
+                request
         );
     }
 }

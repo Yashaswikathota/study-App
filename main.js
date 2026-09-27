@@ -30,8 +30,9 @@ let analyticsWindow = null;
 let currentSession = {
     subject: null,
     startedAt: null,
-    youtubeVisits: 0,
-    distractionSeconds: 0
+    distractionSeconds: 0,
+    pausedSeconds: 0,
+    pausedAt: null
 };
 
 
@@ -114,8 +115,26 @@ async function saveStudySession(completed = false) {
         distractionStartTime = null;
     }
 
+    // ========================================
+    // CLOSE ACTIVE PAUSE
+    // ========================================
+
+    if (currentSession.pausedAt) {
+
+        currentSession.pausedSeconds +=
+            Math.floor(
+                (
+                    Date.now() -
+                    currentSession.pausedAt
+                ) / 1000
+            );
+
+        currentSession.pausedAt = null;
+    }
+
     const endedAt = new Date();
 
+    // Break time while paused is not study time.
     const durationSeconds = Math.max(
         0,
         Math.floor(
@@ -123,7 +142,7 @@ async function saveStudySession(completed = false) {
                 endedAt.getTime() -
                 currentSession.startedAt.getTime()
             ) / 1000
-        )
+        ) - (currentSession.pausedSeconds || 0)
     );
 
     const distractionSeconds = Math.max(
@@ -138,6 +157,12 @@ async function saveStudySession(completed = false) {
         0,
         durationSeconds - distractionSeconds
     );
+
+    console.log("FINAL SESSION VALUES:", {
+        durationSeconds,
+        distractionSeconds,
+        focusedSeconds
+        });
 
     try {
 
@@ -155,8 +180,7 @@ async function saveStudySession(completed = false) {
                 body: JSON.stringify({
                     sessionId: currentSession.id,
                     durationSeconds: durationSeconds,
-                    distractionSeconds: distractionSeconds,
-                    youtubeVisits: currentSession.youtubeVisits
+                    distractionSeconds: distractionSeconds
                 })
             }
         );
@@ -180,8 +204,9 @@ async function saveStudySession(completed = false) {
             id: null,
             subject: null,
             startedAt: null,
-            youtubeVisits: 0,
-            distractionSeconds: 0
+            distractionSeconds: 0,
+            pausedSeconds: 0,
+            pausedAt: null
         };
 
         return savedSession;
@@ -1072,9 +1097,7 @@ function createTotoroWindow() {
 // GET ACTIVE APPLICATION
 // ========================================
 async function getActiveApplication() {
-
     return new Promise((resolve) => {
-
         execFile(
             "osascript",
             [
@@ -1084,81 +1107,69 @@ async function getActiveApplication() {
                     set frontApp to first application process whose frontmost is true
                     set appName to name of frontApp
                     set windowTitle to ""
-                    
+
                     try
                         set windowTitle to name of front window of frontApp
                     end try
-                    
-                    return appName & "|||" & windowTitle
                 end tell
+
+                set pageURL to ""
+
+                if appName is "Google Chrome" then
+                    tell application "Google Chrome"
+                        try
+                            set pageURL to URL of active tab of front window
+                            set windowTitle to title of active tab of front window
+                        end try
+                    end tell
+                else if appName is "Safari" then
+                    tell application "Safari"
+                        try
+                            set pageURL to URL of front document
+                            set windowTitle to name of front document
+                        end try
+                    end tell
+                end if
+
+                return appName & "|||" & windowTitle & "|||" & pageURL
                 `
             ],
-            {
-                timeout: 2000
-            },
+            { timeout: 3000 },
             (error, stdout) => {
-
                 if (error) {
-
                     console.log(
                         "ACTIVE APPLICATION ERROR:",
                         error.message
                     );
-
                     resolve(null);
                     return;
                 }
 
-
-                const output =
-                    stdout.trim();
-
+                const output = stdout.trim();
 
                 if (!output) {
-
-                    console.log(
-                        "NO ACTIVE APPLICATION FOUND"
-                    );
-
+                    console.log("NO ACTIVE APPLICATION FOUND");
                     resolve(null);
                     return;
                 }
 
+                const parts = output.split("|||");
 
-                const parts =
-                    output.split("|||");
-
-
-                const app =
-                    parts[0]?.trim() || null;
-
-
-                const title =
-                    parts.slice(1)
-                        .join("|||")
-                        .trim() || null;
-
+                const app = parts[0]?.trim() || null;
+                const title = parts[1]?.trim() || null;
+                const url = parts.slice(2).join("|||").trim() || null;
 
                 const result = {
-
                     app,
                     title,
-                    url: null
-
+                    url
                 };
 
-
-                console.log(
-                    "ACTIVE APPLICATION:",
-                    result
-                );
-
+                console.log("ACTIVE APPLICATION:", result);
 
                 resolve(result);
-
             }
         );
-
     });
 }
 
@@ -1294,6 +1305,49 @@ function sendCharacterState(
             "CHARACTER WINDOW NOT AVAILABLE"
         );
 
+    }
+}
+
+async function sendActivityToJava(activeWindow) {
+    if (!currentSession.id || !activeWindow) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `http://localhost:8080/api/study-sessions/${currentSession.id}/activity`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    application: activeWindow.app,
+                    title: activeWindow.title,
+                    url: activeWindow.url,
+                    timestamp: new Date().toISOString()
+                })
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Java backend returned HTTP ${response.status}`
+            );
+        }
+
+        const updatedSession = await response.json();
+
+        console.log(
+            "ACTIVITY SENT TO JAVA:",
+            updatedSession
+        );
+
+    } catch (error) {
+        console.error(
+            "FAILED TO SEND ACTIVITY TO JAVA:",
+            error.message
+        );
     }
 }
 
@@ -1532,17 +1586,10 @@ async function monitorStudySession() {
                 distractionStartTime =
                     Date.now();
 
-                currentSession.youtubeVisits += 1;
-
-
-                console.log(
-                    "DISTRACTION STARTED: YouTube"
-                );
-
+                await sendActivityToJava(activeWindow);
 
                 console.log(
-                    "YOUTUBE VISIT:",
-                    currentSession.youtubeVisits
+                        "DISTRACTION STARTED: YouTube"
                 );
 
 
@@ -1863,119 +1910,232 @@ ipcMain.on(
 // ========================================
 // STUDY SESSION START
 // ========================================
-ipcMain.on(
-    "study-session-start",
-    async () => {
+async function startStudySession() {
+
+    console.log(
+        "================================"
+    );
+
+    console.log(
+        "SELECTED SUBJECT AT SESSION START:",
+        selectedSubject
+    );
+
+    // ====================================
+    // CREATE DATABASE SESSION THROUGH JAVA
+    // ====================================
+
+    try {
 
         console.log(
+            "CREATING STUDY SESSION THROUGH JAVA..."
+        );
+
+        const response = await fetch(
+            "http://localhost:8080/api/study-sessions/start",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    subject: selectedSubject
+                })
+            }
+        );
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Java backend returned HTTP ${response.status}`
+            );
+
+        }
+
+        const javaSession =
+            await response.json();
+
+        console.log(
+            "JAVA SESSION CREATED:"
+        );
+
+        console.log(
+            javaSession
+        );
+
+        // ====================================
+        // INITIALIZE LOCAL SESSION
+        // ====================================
+
+        currentSession.id =
+            javaSession.id;
+
+        currentSession.subject =
+            selectedSubject;
+
+        currentSession.startedAt =
+            new Date(
+                javaSession.startedAt
+            );
+
+        currentSession.distractionSeconds =
+            0;
+
+        currentSession.pausedSeconds =
+            0;
+
+        currentSession.pausedAt =
+            null;
+
+        console.log(
+            "DATABASE SESSION INITIALIZED THROUGH JAVA"
+        );
+
+        console.log(
+            "Session ID:",
+            currentSession.id
+        );
+
+        console.log(
+            "Subject:",
+            currentSession.subject
+        );
+
+        console.log(
+            "Started at:",
+            currentSession.startedAt
+        );
+
+    } catch (error) {
+
+        console.error(
             "================================"
         );
 
-        console.log(
-            "SELECTED SUBJECT AT SESSION START:",
-            selectedSubject
+        console.error(
+            "FAILED TO CREATE SESSION THROUGH JAVA"
         );
 
-        // ====================================
-        // CREATE DATABASE SESSION THROUGH JAVA
-        // ====================================
+        console.error(
+            error
+        );
 
-        try {
+        console.error(
+            "================================"
+        );
+
+        return;
+    }
+
+
+    // ====================================
+    // GET ACTIVE APPLICATION RIGHT NOW
+    // ====================================
+
+    const startingApplication =
+        await getActiveApplication();
+
+
+    if (!startingApplication) {
+
+        console.log(
+            "Could not determine starting application."
+        );
+
+        return;
+    }
+
+
+    // ====================================
+    // SAVE STARTING APPLICATION
+    // ====================================
+
+    baselineApplication =
+        startingApplication;
+
+    currentApplication =
+        startingApplication;
+
+    isStudySessionActive =
+        true;
+
+    isDistracted =
+        false;
+
+    isSad =
+        false;
+
+    distractionStartTime =
+        null;
+
+
+    console.log(
+        "STUDY SESSION STARTED"
+    );
+
+
+    console.log(
+        "Starting application:",
+        baselineApplication.app
+    );
+
+
+    console.log(
+        "Starting window:",
+        baselineApplication.title
+    );
+
+
+    if (
+        baselineApplication.url
+    ) {
+
+        console.log(
+            "Starting URL:",
+            baselineApplication.url
+        );
+
+    }
+
+
+    console.log(
+        "================================"
+    );
+
+
+    // ====================================
+    // CHARACTER STARTS WORKING
+    // ====================================
+
+    sendCharacterState(
+        "working"
+    );
+
+}
+
+ipcMain.on(
+    "study-session-start",
+    startStudySession
+);
+
+
+// ========================================
+// STUDY SESSION PAUSE
+// ========================================
+
+ipcMain.on(
+    "study-session-pause",
+    () => {
+
+        if (
+            !isStudySessionActive ||
+            !currentSession.startedAt
+        ) {
 
             console.log(
-                "CREATING STUDY SESSION THROUGH JAVA..."
-            );
-
-            const response = await fetch(
-                "http://localhost:8080/api/study-sessions/start",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        subject: selectedSubject
-                    })
-                }
-            );
-
-            if (!response.ok) {
-
-                throw new Error(
-                    `Java backend returned HTTP ${response.status}`
-                );
-
-            }
-
-            const javaSession =
-                await response.json();
-
-            console.log(
-                "JAVA SESSION CREATED:"
-            );
-
-            console.log(
-                javaSession
-            );
-
-            // ====================================
-            // INITIALIZE LOCAL SESSION
-            // ====================================
-
-            currentSession.id =
-                javaSession.id;
-
-            currentSession.subject =
-                selectedSubject;
-
-            currentSession.startedAt =
-                new Date(
-                    javaSession.startedAt
-                );
-
-            currentSession.youtubeVisits =
-                0;
-
-            currentSession.distractionSeconds =
-                0;
-
-            console.log(
-                "DATABASE SESSION INITIALIZED THROUGH JAVA"
-            );
-
-            console.log(
-                "Session ID:",
-                currentSession.id
-            );
-
-            console.log(
-                "Subject:",
-                currentSession.subject
-            );
-
-            console.log(
-                "Started at:",
-                currentSession.startedAt
-            );
-
-        } catch (error) {
-
-            console.error(
-                "================================"
-            );
-
-            console.error(
-                "FAILED TO CREATE SESSION THROUGH JAVA"
-            );
-
-            console.error(
-                error
-            );
-
-            console.error(
-                "================================"
+                "No active study session to pause."
             );
 
             return;
@@ -1983,32 +2143,113 @@ ipcMain.on(
 
 
         // ====================================
-        // GET ACTIVE APPLICATION RIGHT NOW
+        // CLOSE ACTIVE DISTRACTION
         // ====================================
+        // Break time must not count as distraction.
 
-        const startingApplication =
-            await getActiveApplication();
+        if (
+            isDistracted &&
+            distractionStartTime
+        ) {
 
+            const distractionDuration =
+                Math.floor(
+                    (
+                        Date.now() -
+                        distractionStartTime
+                    ) / 1000
+                );
 
-        if (!startingApplication) {
+            currentSession.distractionSeconds +=
+                distractionDuration;
 
             console.log(
-                "Could not determine starting application."
+                "DISTRACTION DURATION:",
+                distractionDuration,
+                "seconds"
+            );
+        }
+
+
+        // ====================================
+        // STOP TRACKING, KEEP SESSION OPEN
+        // ====================================
+
+        isStudySessionActive =
+            false;
+
+        isDistracted =
+            false;
+
+        isSad =
+            false;
+
+        distractionStartTime =
+            null;
+
+        currentSession.pausedAt =
+            Date.now();
+
+
+        console.log(
+            "STUDY SESSION PAUSED"
+        );
+
+
+        sendCharacterState(
+            "thinking"
+        );
+
+    }
+);
+
+
+// ========================================
+// STUDY SESSION RESUME
+// ========================================
+
+ipcMain.on(
+    "study-session-resume",
+    async () => {
+
+        // Session was never created (e.g. backend was down
+        // when the timer started) - start one now.
+        if (!currentSession.startedAt) {
+
+            console.log(
+                "No session to resume. Starting a new one."
+            );
+
+            await startStudySession();
+
+            return;
+        }
+
+
+        if (!currentSession.pausedAt) {
+
+            console.log(
+                "Study session is not paused."
             );
 
             return;
         }
 
 
-        // ====================================
-        // SAVE STARTING APPLICATION
-        // ====================================
+        const pausedSeconds =
+            Math.floor(
+                (
+                    Date.now() -
+                    currentSession.pausedAt
+                ) / 1000
+            );
 
-        baselineApplication =
-            startingApplication;
+        currentSession.pausedSeconds +=
+            pausedSeconds;
 
-        currentApplication =
-            startingApplication;
+        currentSession.pausedAt =
+            null;
+
 
         isStudySessionActive =
             true;
@@ -2024,42 +2265,21 @@ ipcMain.on(
 
 
         console.log(
-            "STUDY SESSION STARTED"
+            "STUDY SESSION RESUMED"
         );
-
 
         console.log(
-            "Starting application:",
-            baselineApplication.app
+            "Paused for:",
+            pausedSeconds,
+            "seconds"
         );
-
 
         console.log(
-            "Starting window:",
-            baselineApplication.title
+            "Total paused:",
+            currentSession.pausedSeconds,
+            "seconds"
         );
 
-
-        if (
-            baselineApplication.url
-        ) {
-
-            console.log(
-                "Starting URL:",
-                baselineApplication.url
-            );
-
-        }
-
-
-        console.log(
-            "================================"
-        );
-
-
-        // ====================================
-        // CHARACTER STARTS WORKING
-        // ====================================
 
         sendCharacterState(
             "working"

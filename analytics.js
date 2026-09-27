@@ -207,13 +207,13 @@ function renderSessions(sessions) {
 
                     const duration =
                         Number(
-                            session.duration_seconds || 0
+                            session.durationSeconds || 0
                         );
 
 
                     const focused =
                         Number(
-                            session.focused_seconds || 0
+                            session.focusedSeconds || 0
                         );
 
 
@@ -242,7 +242,7 @@ function renderSessions(sessions) {
 
                                 <div class="session-date">
                                     ${formatDate(
-                                        session.started_at
+                                        session.startedAt
                                     )}
                                 </div>
 

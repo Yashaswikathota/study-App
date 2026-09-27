@@ -2,6 +2,8 @@ package com.studycompanion.demo.service;
 
 import com.studycompanion.demo.entity.StudySession;
 import com.studycompanion.demo.repository.StudySessionRepository;
+import com.studycompanion.demo.dto.ActivityRequest;
+import com.studycompanion.demo.exception.StudySessionNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -26,6 +28,17 @@ public class StudySessionService {
         return studySessionRepository.findById(id);
     }
 
+    private StudySession findSessionOrThrow(Integer id) {
+
+        if (id == null) {
+            throw new IllegalArgumentException("sessionId is required");
+        }
+
+        return studySessionRepository
+                .findById(id)
+                .orElseThrow(() -> new StudySessionNotFoundException(id));
+    }
+
     public StudySession saveSession(StudySession session) {
         return studySessionRepository.save(session);
     }
@@ -48,13 +61,9 @@ public class StudySessionService {
     public StudySession stopSession(
             Integer sessionId,
             Integer durationSeconds,
-            Integer distractionSeconds,
-            Integer youtubeVisits) {
+            Integer distractionSeconds) {
 
-        StudySession session = studySessionRepository
-                .findById(sessionId)
-                .orElseThrow(() ->
-                        new RuntimeException("Study session not found"));
+        StudySession session = findSessionOrThrow(sessionId);
 
         int duration = Math.max(
                 0,
@@ -75,14 +84,47 @@ public class StudySessionService {
         session.setDurationSeconds(duration);
         session.setDistractionSeconds(distraction);
         session.setFocusedSeconds(focused);
-        session.setYoutubeVisits(
-                Math.max(
-                        0,
-                        youtubeVisits != null ? youtubeVisits : 0
-                )
-        );
         session.setCompleted(true);
 
         return studySessionRepository.save(session);
     }
+    public StudySession recordActivity(
+        Integer sessionId,
+        ActivityRequest request) {
+
+    StudySession session = findSessionOrThrow(sessionId);
+
+    String application = request.getApplication();
+    String title = request.getTitle();
+    String url = request.getUrl();
+
+    boolean isYouTube = false;
+
+    if (url != null && !url.isBlank()) {
+        String lowerUrl = url.toLowerCase();
+
+        isYouTube =
+                lowerUrl.contains("youtube.com") ||
+                lowerUrl.contains("youtube-nocookie.com") ||
+                lowerUrl.contains("youtu.be");
+    }
+
+    if (!isYouTube) {
+        String combinedText =
+                ((application != null ? application : "") + " " +
+                 (title != null ? title : "")).toLowerCase();
+
+        isYouTube = combinedText.contains("youtube");
+    }
+
+    if (isYouTube) {
+        session.setYoutubeVisits(
+                session.getYoutubeVisits() != null
+                        ? session.getYoutubeVisits() + 1
+                        : 1
+        );
+    }
+
+    return studySessionRepository.save(session);
+}
 }

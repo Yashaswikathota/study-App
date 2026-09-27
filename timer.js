@@ -215,6 +215,11 @@ function startTimer() {
     }
 
 
+    // Starting again after a pause continues the same session
+    const isResuming =
+        timerStarted;
+
+
     // Initialize countdown
     if (!timerStarted) {
 
@@ -233,12 +238,16 @@ function startTimer() {
     // ====================================
 
     console.log(
-        "TIMER STARTED"
+        isResuming
+            ? "TIMER RESUMED"
+            : "TIMER STARTED"
     );
 
 
     ipcRenderer.send(
-        "study-session-start"
+        isResuming
+            ? "study-session-resume"
+            : "study-session-start"
     );
 
 
@@ -288,18 +297,22 @@ function startTimer() {
 
 function pauseTimer() {
 
+    // Nothing to pause
     if (
-        timerInterval !== null
+        timerInterval === null
     ) {
 
-        clearInterval(
-            timerInterval
-        );
-
-        timerInterval =
-            null;
+        return;
 
     }
+
+
+    clearInterval(
+        timerInterval
+    );
+
+    timerInterval =
+        null;
 
 
     statusText.textContent =
@@ -316,8 +329,9 @@ function pauseTimer() {
     );
 
 
+    // Keep the session open - Reset or completion ends it
     ipcRenderer.send(
-        "study-session-stop"
+        "study-session-pause"
     );
 
 }
