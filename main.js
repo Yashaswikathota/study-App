@@ -85,6 +85,11 @@ async function saveStudySession(completed = false) {
         return null;
     }
 
+    // Unanswered video question: close it (it stays a distraction).
+    // Awaited so the activity update reaches the backend
+    // before the stop request.
+    await closeUnansweredVideo();
+
     // ========================================
     // CLOSE ACTIVE DISTRACTION
     // ========================================
@@ -621,7 +626,14 @@ function createMainWindow() {
 
             contextIsolation: true,
 
-            nodeIntegration: false
+            nodeIntegration: false,
+
+            // The sandboxed preload loader intermittently fails at
+            // startup with ENOENT on preload.js, leaving window.studyApi
+            // undefined so Start and Analytics do nothing. Loading the
+            // preload without the sandbox is reliable; context isolation
+            // still keeps Node out of the page.
+            sandbox: false
         }
     });
 
@@ -784,7 +796,9 @@ function createReportWindow(savedSession) {
     // Create report window
     // ----------------------------------------
 
-    reportWindow =
+    // Local reference: the handlers below must act on THIS window,
+    // even if another report replaces reportWindow in the meantime.
+    const window =
         new BrowserWindow({
 
             x: Math.round(reportX),
@@ -825,11 +839,28 @@ function createReportWindow(savedSession) {
         });
 
 
+    reportWindow =
+        window;
+
+
+    // report.js asks for this when its script runs (see
+    // "get-session-report"). A message pushed at "ready-to-show"
+    // could arrive before report.js was listening, leaving the
+    // report at its placeholder zeros.
+    const contentsId =
+        window.webContents.id;
+
+    reportSessions.set(
+        contentsId,
+        savedSession
+    );
+
+
     // ----------------------------------------
     // Load report UI
     // ----------------------------------------
 
-    reportWindow.loadFile(
+    window.loadFile(
         path.join(
             __dirname,
             "report.html"
@@ -841,24 +872,24 @@ function createReportWindow(savedSession) {
     // Send session after page loads
     // ----------------------------------------
 
-    reportWindow.once(
+    window.once(
         "ready-to-show",
         () => {
+
+            if (window.isDestroyed()) {
+
+                return;
+            }
+
 
             console.log(
                 "REPORT WINDOW READY"
             );
 
 
-            reportWindow.webContents.send(
-                "session-report",
-                savedSession
-            );
+            window.show();
 
-
-            reportWindow.show();
-
-            reportWindow.focus();
+            window.focus();
 
         }
     );
@@ -868,16 +899,43 @@ function createReportWindow(savedSession) {
     // Report closed
     // ----------------------------------------
 
-    reportWindow.on(
+    window.on(
         "closed",
         () => {
 
-            reportWindow = null;
+            reportSessions.delete(
+                contentsId
+            );
+
+
+            // An older report closing must not clear the newer one
+            if (reportWindow === window) {
+
+                reportWindow = null;
+
+            }
 
         }
     );
 
 }
+
+
+// Session shown by each report window, keyed by its webContents id
+const reportSessions = new Map();
+
+
+ipcMain.handle(
+    "get-session-report",
+    (event) => {
+
+        return (
+            reportSessions.get(
+                event.sender.id
+            ) ?? null
+        );
+    }
+);
 
 // ========================================
 // CREATE CHARACTER WINDOW
@@ -1274,6 +1332,644 @@ function isYouTube(
 
 
 // ========================================
+// STUDY-RELATED YOUTUBE CHECK
+// ========================================
+
+// Answers from the "Is this video for <subject>?" prompt.
+// Key: "<subject>|<video key>", value: "study" or "distraction".
+const videoAnswers = new Map();
+
+// Unknown video waiting for the user's answer.
+let pendingVideo = null;
+
+// Last YouTube page seen, used to skip the moment where YouTube
+// has changed the URL but still shows the previous video's title.
+let lastYouTubePage = null;
+
+const SUBJECT_STOP_WORDS = new Set([
+    "a", "an", "and", "the", "of", "in", "on", "for", "to", "with", "or"
+]);
+
+
+function escapeRegExp(text) {
+
+    return text.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+    );
+}
+
+
+// Whole-word match, so "java" does not match "javascript"
+// and "c++" still matches "C++ tutorial".
+function containsWord(text, word) {
+
+    return new RegExp(
+        `(^|[^a-z0-9])${escapeRegExp(word)}(?=$|[^a-z0-9])`
+    ).test(text);
+}
+
+
+function matchesSubject(text, subject) {
+
+    const lowerText =
+        String(text || "").toLowerCase();
+
+    const lowerSubject =
+        String(subject || "").toLowerCase().trim();
+
+
+    if (!lowerText || !lowerSubject) {
+
+        return false;
+    }
+
+
+    if (containsWord(lowerText, lowerSubject)) {
+
+        return true;
+    }
+
+
+    // "Data Structures" matches a title containing both words
+    const words =
+        lowerSubject
+            .split(/\s+/)
+            .filter(
+                word =>
+                    word &&
+                    !SUBJECT_STOP_WORDS.has(word)
+            );
+
+
+    return (
+        words.length > 0 &&
+        words.every(
+            word => containsWord(lowerText, word)
+        )
+    );
+}
+
+
+// "(4) Java Streams Tutorial - YouTube" -> "Java Streams Tutorial"
+function cleanYouTubeTitle(title) {
+
+    const cleaned =
+        String(title || "")
+            .replace(/^\(\d+\)\s*/, "")
+            .replace(/\s+[-–—]\s+YouTube.*$/i, "")
+            .trim();
+
+
+    return cleaned.toLowerCase() === "youtube"
+        ? ""
+        : cleaned;
+}
+
+
+function getYouTubeUrl(activeWindow) {
+
+    try {
+
+        const url =
+            new URL(activeWindow.url);
+
+        const hostname =
+            url.hostname.toLowerCase();
+
+
+        if (
+            hostname === "youtube.com" ||
+            hostname.endsWith(".youtube.com")
+        ) {
+
+            return url;
+        }
+
+    }
+
+    catch {
+
+        // No URL or not a valid URL
+
+    }
+
+
+    return null;
+}
+
+
+function getVideoAnswerKey(subject, key) {
+
+    return `${String(subject || "").toLowerCase().trim()}|${key}`;
+}
+
+
+// Returns { kind, key, text }
+// kind: "focus"       not YouTube
+//       "study"       YouTube video/search about the subject
+//       "distraction" Shorts, home page, feed, or answered "No"
+//       "unknown"     ask the user
+//       "wait"        YouTube page still loading its title
+function classifyActivity(
+    activeWindow,
+    subject
+) {
+
+    if (!isYouTube(activeWindow)) {
+
+        return { kind: "focus" };
+    }
+
+
+    const url =
+        getYouTubeUrl(activeWindow);
+
+    let key = null;
+
+    let text = "";
+
+
+    if (url) {
+
+        if (url.pathname === "/watch") {
+
+            const videoId =
+                url.searchParams.get("v");
+
+            text =
+                cleanYouTubeTitle(activeWindow.title);
+
+
+            if (!videoId) {
+
+                return { kind: "distraction" };
+            }
+
+
+            if (!text) {
+
+                return { kind: "wait" };
+            }
+
+
+            key =
+                `video:${videoId}`;
+
+
+            // URL changed but the title is still the previous
+            // video's title. Wait one check for it to update.
+            if (
+                lastYouTubePage &&
+                lastYouTubePage.key !== key &&
+                lastYouTubePage.text === text &&
+                lastYouTubePage.waitedFor !== key
+            ) {
+
+                lastYouTubePage.waitedFor =
+                    key;
+
+                return { kind: "wait" };
+            }
+
+        }
+
+        else if (url.pathname === "/results") {
+
+            text =
+                (url.searchParams.get("search_query") || "").trim();
+
+
+            if (!text) {
+
+                return { kind: "distraction" };
+            }
+
+
+            key =
+                `search:${text.toLowerCase()}`;
+
+        }
+
+        else {
+
+            // Home page, Shorts, feeds, channels
+            return { kind: "distraction" };
+        }
+
+    }
+
+    else {
+
+        // Browser without URL access: only the title is known
+        text =
+            cleanYouTubeTitle(activeWindow.title);
+
+
+        if (!text) {
+
+            return { kind: "distraction" };
+        }
+
+
+        key =
+            `title:${text.toLowerCase()}`;
+    }
+
+
+    lastYouTubePage = {
+        key,
+        text
+    };
+
+
+    // ====================================
+    // 1. TITLE / SEARCH MATCHES THE SUBJECT
+    // ====================================
+
+    if (matchesSubject(text, subject)) {
+
+        return { kind: "study", key, text };
+    }
+
+
+    // ====================================
+    // 2. THE USER ALREADY ANSWERED
+    // ====================================
+
+    const answerKey =
+        getVideoAnswerKey(subject, key);
+
+    const answer =
+        videoAnswers.get(answerKey);
+
+
+    if (answer) {
+
+        return { kind: answer, key, text };
+    }
+
+
+    // ====================================
+    // 3. AI CHECK (only used to skip the question)
+    // ====================================
+
+    const verdict =
+        aiVerdicts.get(answerKey);
+
+
+    if (!verdict) {
+
+        requestAiVerdict(
+            answerKey,
+            subject,
+            text
+        );
+
+        return { kind: "checking", key, text };
+    }
+
+
+    if (verdict.status === "pending") {
+
+        return { kind: "checking", key, text };
+    }
+
+
+    if (verdict.status === "study") {
+
+        return { kind: "study", key, text };
+    }
+
+
+    // ====================================
+    // 4. NOT MATCHED: ASK THE USER
+    // ====================================
+
+    return { kind: "unknown", key, text };
+}
+
+
+// ========================================
+// AI VIDEO CHECK (JAVA BACKEND -> CLAUDE)
+// ========================================
+
+// Key: "<subject>|<video key>"
+// Value: { status: "pending" | "study" | "unrelated" | "failed" }
+// "unrelated" and "failed" both lead to asking the user.
+const aiVerdicts = new Map();
+
+const AI_CHECK_TIMEOUT_MS = 25000;
+
+
+async function requestAiVerdict(
+    answerKey,
+    subject,
+    text
+) {
+
+    const verdict = {
+        status: "pending"
+    };
+
+    aiVerdicts.set(
+        answerKey,
+        verdict
+    );
+
+
+    try {
+
+        const response = await fetch(
+            "http://localhost:8080/api/video-check",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    subject,
+                    title: text
+                }),
+                signal:
+                    AbortSignal.timeout(
+                        AI_CHECK_TIMEOUT_MS
+                    )
+            }
+        );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Java backend returned HTTP ${response.status}`
+            );
+        }
+
+
+        const result =
+            await response.json();
+
+
+        if (typeof result.related !== "boolean") {
+
+            throw new Error(
+                "Unexpected AI check response"
+            );
+        }
+
+
+        verdict.status =
+            result.related
+                ? "study"
+                : "unrelated";
+
+
+        console.log(
+            "AI VIDEO CHECK:",
+            verdict.status,
+            text
+        );
+
+    }
+
+    catch (error) {
+
+        // Falls back to asking the user
+        verdict.status =
+            "failed";
+
+        console.log(
+            "AI VIDEO CHECK UNAVAILABLE:",
+            error.message
+        );
+
+    }
+}
+
+
+// ========================================
+// ASK ABOUT A VIDEO
+// ========================================
+
+// The question appears as a speech bubble in the character window.
+function sendToCharacter(channel, payload) {
+
+    if (
+        totoroWindow &&
+        !totoroWindow.isDestroyed()
+    ) {
+
+        totoroWindow.webContents.send(
+            channel,
+            payload
+        );
+
+    }
+}
+
+
+function askAboutVideo(video) {
+
+    console.log(
+        "ASKING ABOUT VIDEO:",
+        video.text
+    );
+
+
+    sendToCharacter(
+        "video-check",
+        {
+            subject: video.subject,
+            title: video.text
+        }
+    );
+}
+
+
+// Question closed without an answer (user moved on, paused or
+// stopped): the video stays a distraction. Its time is already
+// being counted by the running distraction.
+async function closeUnansweredVideo() {
+
+    if (!pendingVideo) {
+
+        return;
+    }
+
+
+    const video =
+        pendingVideo;
+
+    pendingVideo =
+        null;
+
+
+    sendToCharacter(
+        "video-check-hide"
+    );
+
+
+    console.log(
+        "UNANSWERED VIDEO KEPT AS DISTRACTION:",
+        video.text
+    );
+
+
+    await sendActivityToJava(
+        video.window
+    );
+}
+
+
+// ========================================
+// START / CANCEL / END DISTRACTION
+// ========================================
+
+// Page the current distraction belongs to (a video key, or
+// BROWSE_KEY for Shorts / home page / feeds).
+let distractionKey = null;
+
+const BROWSE_KEY = "youtube:browse";
+
+
+async function startDistraction(
+    activeWindow,
+    key,
+    countVisit
+) {
+
+    isDistracted =
+        true;
+
+    isSad =
+        false;
+
+    distractionStartTime =
+        Date.now();
+
+    distractionKey =
+        key;
+
+
+    console.log(
+        "DISTRACTION STARTED: YouTube"
+    );
+
+
+    // YouTube = Confused
+    sendCharacterState(
+        "confused"
+    );
+
+
+    // Unanswered videos are reported when the question closes
+    if (countVisit) {
+
+        await sendActivityToJava(
+            activeWindow
+        );
+
+    }
+}
+
+
+// The video turned out to be for study: its time is not distraction.
+function cancelDistraction() {
+
+    console.log(
+        "DISTRACTION CANCELLED: study video"
+    );
+
+
+    isDistracted =
+        false;
+
+    isSad =
+        false;
+
+    distractionStartTime =
+        null;
+
+    distractionKey =
+        null;
+}
+
+
+function endDistraction() {
+
+    if (distractionStartTime) {
+
+        const distractionDuration =
+            Math.floor(
+                (
+                    Date.now() -
+                    distractionStartTime
+                ) / 1000
+            );
+
+
+        currentSession.distractionSeconds +=
+            distractionDuration;
+
+
+        console.log(
+            "DISTRACTION DURATION:",
+            distractionDuration,
+            "seconds"
+        );
+
+
+        console.log(
+            "TOTAL DISTRACTION:",
+            currentSession.distractionSeconds,
+            "seconds"
+        );
+
+    }
+
+
+    isDistracted =
+        false;
+
+    isSad =
+        false;
+
+    distractionStartTime =
+        null;
+
+    distractionKey =
+        null;
+}
+
+
+// Clicking the question bubble or dragging the character brings
+// our app to the front. That is not "back to studying".
+function isCharacterWindow(activeWindow) {
+
+    if (!isOurApplication(activeWindow)) {
+
+        return false;
+    }
+
+
+    // Electron knows which of our windows has focus. The title
+    // macOS reports for this small frameless window is not reliable.
+    if (
+        totoroWindow &&
+        !totoroWindow.isDestroyed() &&
+        totoroWindow.isFocused()
+    ) {
+
+        return true;
+    }
+
+
+    return activeWindow.title === "Character";
+}
+
+
+// ========================================
 // SEND CHARACTER STATE
 // ========================================
 
@@ -1419,6 +2115,16 @@ async function monitorStudySession() {
                             )
             ) {
 
+            // Answering the question bubble or dragging the
+            // character: keep the current state.
+            if (
+                pendingVideo ||
+                isCharacterWindow(activeWindow)
+            ) {
+
+                return;
+            }
+
             if (
                 isStudySessionActive &&
                 isDistracted
@@ -1550,181 +2256,199 @@ async function monitorStudySession() {
 
 
         // ========================================
-        // CHECK YOUTUBE
+        // CLASSIFY: FOCUS / STUDY VIDEO /
+        // DISTRACTION / UNKNOWN VIDEO
         // ========================================
 
-        const watchingYouTube =
-            isYouTube(
-                activeWindow
+        const subject =
+            currentSession.subject ||
+            selectedSubject ||
+            "";
+
+        const activity =
+            classifyActivity(
+                activeWindow,
+                subject
             );
 
 
         console.log(
-            "IS YOUTUBE:",
-            watchingYouTube
+            "ACTIVITY:",
+            activity.kind,
+            activity.text || ""
         );
 
 
-        // ========================================
-        // USER IS ON YOUTUBE
-        // ========================================
-
-        if (watchingYouTube) {
-
-            // -------------------------------
-            // DISTRACTION JUST STARTED
-            // -------------------------------
-
-            if (!isDistracted) {
-
-                isDistracted =
-                    true;
-
-                isSad =
-                    false;
-
-                distractionStartTime =
-                    Date.now();
-
-                await sendActivityToJava(activeWindow);
-
-                console.log(
-                        "DISTRACTION STARTED: YouTube"
-                );
-
-
-                // YouTube = Confused
-
-                sendCharacterState(
-                    "confused"
-                );
-
-            }
-
-
-            // -------------------------------
-            // ALREADY DISTRACTED
-            // -------------------------------
-
-            else {
-
-                const distractionSeconds =
-                    Math.floor(
-                        (
-                            Date.now() -
-                            distractionStartTime
-                        ) / 1000
-                    );
-
-
-                console.log(
-                    "YouTube distraction:",
-                    distractionSeconds,
-                    "seconds"
-                );
-
-
-                // =================================
-                // 5 MINUTES
-                // =================================
-
-                if (
-                    distractionSeconds >= 300 &&
-                    !isSad
-                ) {
-
-                    isSad =
-                        true;
-
-
-                    console.log(
-                        "DISTRACTION REACHED 5 MINUTES"
-                    );
-
-
-                    // YouTube for 5 minutes = Sad
-
-                    sendCharacterState(
-                        "sad"
-                    );
-
-                }
-
-            }
-
+        // YouTube title not loaded yet: decide on the next check
+        if (activity.kind === "wait") {
 
             return;
         }
 
 
         // ========================================
-        // USER LEFT YOUTUBE
+        // LEFT A VIDEO WITHOUT ANSWERING
+        // ========================================
+        // The question closes and the video stays a distraction.
+
+        if (
+            pendingVideo &&
+            activity.key !== pendingVideo.key
+        ) {
+
+            await closeUnansweredVideo();
+
+        }
+
+
+        // ========================================
+        // FOCUSED OR WATCHING A STUDY VIDEO
         // ========================================
 
-        if (isDistracted) {
+        if (
+            activity.kind === "focus" ||
+            activity.kind === "study"
+        ) {
 
-            console.log(
-                "USER RETURNED FROM DISTRACTION"
-            );
+            if (isDistracted) {
 
+                if (
+                    activity.kind === "study" &&
+                    distractionKey === activity.key
+                ) {
 
-            // ====================================
-            // CALCULATE DISTRACTION DURATION
-            // ====================================
+                    // Matched after all (e.g. AI said related):
+                    // this video was never a distraction.
+                    cancelDistraction();
 
-            if (distractionStartTime) {
+                }
 
-                const distractionDuration =
-                    Math.floor(
-                        (
-                            Date.now() -
-                            distractionStartTime
-                        ) / 1000
+                else {
+
+                    console.log(
+                        "USER RETURNED FROM DISTRACTION"
                     );
 
+                    endDistraction();
 
-                currentSession.distractionSeconds +=
-                    distractionDuration;
-
-
-                console.log(
-                    "DISTRACTION DURATION:",
-                    distractionDuration,
-                    "seconds"
-                );
+                }
 
 
-                console.log(
-                    "TOTAL DISTRACTION:",
-                    currentSession.distractionSeconds,
-                    "seconds"
+                // ====================================
+                // BACK TO WORKING
+                // ====================================
+
+                sendCharacterState(
+                    "working"
                 );
 
             }
 
-
-            // ====================================
-            // END DISTRACTION
-            // ====================================
-
-            isDistracted =
-                false;
+            return;
+        }
 
 
-            isSad =
-                false;
+        // ========================================
+        // YOUTUBE THAT IS NOT (YET) STUDY
+        // ========================================
+        // "distraction": Shorts, home page, or answered "No"
+        // "checking":    AI is deciding
+        // "unknown":     ask the user
+        // In every case the character is confused and the
+        // time counts until the video turns out to be for study.
+
+        const pageKey =
+            activity.key ??
+            BROWSE_KEY;
 
 
-            distractionStartTime =
-                null;
+        // Moved to a different distracting page: close the previous one
+        if (
+            isDistracted &&
+            distractionKey !== pageKey
+        ) {
+
+            endDistraction();
+
+        }
 
 
-            // ====================================
-            // BACK TO WORKING
-            // ====================================
+        if (!isDistracted) {
 
-            sendCharacterState(
-                "working"
+            await startDistraction(
+                activeWindow,
+                pageKey,
+                activity.kind === "distraction"
+            );
+
+        }
+
+        else {
+
+            const distractionSeconds =
+                Math.floor(
+                    (
+                        Date.now() -
+                        distractionStartTime
+                    ) / 1000
+                );
+
+
+            console.log(
+                "YouTube distraction:",
+                distractionSeconds,
+                "seconds"
+            );
+
+
+            // =================================
+            // 5 MINUTES
+            // =================================
+
+            if (
+                distractionSeconds >= 300 &&
+                !isSad
+            ) {
+
+                isSad =
+                    true;
+
+
+                console.log(
+                    "DISTRACTION REACHED 5 MINUTES"
+                );
+
+
+                // YouTube for 5 minutes = Sad
+
+                sendCharacterState(
+                    "sad"
+                );
+
+            }
+
+        }
+
+
+        // ========================================
+        // NOT MATCHED: ASK THE USER
+        // ========================================
+
+        if (
+            activity.kind === "unknown" &&
+            !pendingVideo
+        ) {
+
+            pendingVideo = {
+                key: activity.key,
+                text: activity.text,
+                subject,
+                window: activeWindow
+            };
+
+
+            askAboutVideo(
+                pendingVideo
             );
 
         }
@@ -2026,6 +2750,21 @@ async function startStudySession() {
             "================================"
         );
 
+
+        // Without a session nothing is tracked, so stop the
+        // countdown and say why instead of failing silently.
+        if (
+            timerWindow &&
+            !timerWindow.isDestroyed()
+        ) {
+
+            timerWindow.webContents.send(
+                "study-session-error",
+                "Backend not running. Start it, then press Start."
+            );
+
+        }
+
         return;
     }
 
@@ -2038,13 +2777,13 @@ async function startStudySession() {
         await getActiveApplication();
 
 
+    // Only used for logging: tracking starts either way.
     if (!startingApplication) {
 
         console.log(
             "Could not determine starting application."
         );
 
-        return;
     }
 
 
@@ -2070,6 +2809,16 @@ async function startStudySession() {
     distractionStartTime =
         null;
 
+    pendingVideo =
+        null;
+
+    lastYouTubePage =
+        null;
+
+    sendToCharacter(
+        "video-check-hide"
+    );
+
 
     console.log(
         "STUDY SESSION STARTED"
@@ -2078,18 +2827,18 @@ async function startStudySession() {
 
     console.log(
         "Starting application:",
-        baselineApplication.app
+        baselineApplication?.app
     );
 
 
     console.log(
         "Starting window:",
-        baselineApplication.title
+        baselineApplication?.title
     );
 
 
     if (
-        baselineApplication.url
+        baselineApplication?.url
     ) {
 
         console.log(
@@ -2127,7 +2876,7 @@ ipcMain.on(
 
 ipcMain.on(
     "study-session-pause",
-    () => {
+    async () => {
 
         if (
             !isStudySessionActive ||
@@ -2140,6 +2889,13 @@ ipcMain.on(
 
             return;
         }
+
+
+        // Unanswered video question: count it and close the bubble.
+        // Its state is cleared immediately; the backend update
+        // is awaited at the end of this handler.
+        const unansweredVideo =
+            closeUnansweredVideo();
 
 
         // ====================================
@@ -2198,6 +2954,105 @@ ipcMain.on(
 
         sendCharacterState(
             "thinking"
+        );
+
+
+        await unansweredVideo;
+
+    }
+);
+
+
+// ========================================
+// VIDEO QUESTION ANSWERED
+// ========================================
+
+ipcMain.on(
+    "video-check-answer",
+    async (_event, answer) => {
+
+        if (
+            !pendingVideo ||
+            !isStudySessionActive ||
+            (
+                answer !== "study" &&
+                answer !== "distraction"
+            )
+        ) {
+
+            return;
+        }
+
+
+        const video =
+            pendingVideo;
+
+        pendingVideo =
+            null;
+
+
+        // Remember for this video and subject
+        videoAnswers.set(
+            getVideoAnswerKey(
+                video.subject,
+                video.key
+            ),
+            answer
+        );
+
+
+        sendToCharacter(
+            "video-check-hide"
+        );
+
+
+        console.log(
+            "VIDEO ANSWER:",
+            answer,
+            video.text
+        );
+
+
+        // ====================================
+        // YES: STUDY VIDEO
+        // ====================================
+        // The time since the video opened is not distraction.
+
+        if (answer === "study") {
+
+            if (
+                isDistracted &&
+                distractionKey === video.key
+            ) {
+
+                cancelDistraction();
+
+            }
+
+
+            sendCharacterState(
+                "working"
+            );
+
+            return;
+        }
+
+
+        // ====================================
+        // NO: DISTRACTION
+        // ====================================
+        // Character stays confused. The distraction has been
+        // counting since the video opened and keeps counting
+        // until the user leaves YouTube.
+
+        console.log(
+            "VIDEO CONFIRMED AS DISTRACTION:",
+            video.text
+        );
+
+
+        await sendActivityToJava(
+            video.window
         );
 
     }
@@ -2291,6 +3146,8 @@ ipcMain.on(
 // STUDY SESSION STOP
 // ========================================
 
+let isStoppingSession = false;
+
 ipcMain.on(
     "study-session-stop",
     async () => {
@@ -2304,6 +3161,14 @@ ipcMain.on(
             return;
         }
 
+        // A second stop while the first is still saving (e.g. the
+        // timer finishing as Reset is pressed) would save twice and
+        // open two reports.
+        if (isStoppingSession) {
+            console.log("Study session is already stopping.");
+            return;
+        }
+
         console.log(
             "STUDY SESSION STOPPING"
         );
@@ -2313,8 +3178,22 @@ ipcMain.on(
         // SAVE SESSION THROUGH JAVA BACKEND
         // ====================================
 
-        const savedSession =
-            await saveStudySession(false);
+        isStoppingSession =
+            true;
+
+        let savedSession;
+
+        try {
+
+            savedSession =
+                await saveStudySession(false);
+
+        } finally {
+
+            isStoppingSession =
+                false;
+
+        }
 
 
         // ====================================

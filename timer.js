@@ -423,6 +423,12 @@ function completeTimer() {
         0;
 
 
+    // Session is over: the next Start begins a new session
+    // with a full countdown instead of resuming this one.
+    timerStarted =
+        false;
+
+
     updateTimer();
 
 
@@ -452,10 +458,9 @@ function completeTimer() {
         "happy"
     );
 
-
-    alert(
-        "Time's up!"
-    );
+    // No alert() here: the timer window is hidden while the
+    // report is open, and an alert on a hidden window freezes
+    // the timer so the next session cannot be started.
 
 }
 
@@ -541,6 +546,61 @@ ipcRenderer.on(
         console.log(
             "TIMER SUBJECT:",
             subject
+        );
+
+    }
+);
+
+
+// ========================================
+// SESSION COULD NOT START
+// ========================================
+// Nothing is tracked without a session, so do not let the
+// countdown run as if it were.
+
+ipcRenderer.on(
+    "study-session-error",
+    (
+        _event,
+        message
+    ) => {
+
+        if (
+            timerInterval !== null
+        ) {
+
+            clearInterval(
+                timerInterval
+            );
+
+            timerInterval =
+                null;
+
+        }
+
+
+        remainingSeconds =
+            getTotalSeconds();
+
+        timerStarted =
+            false;
+
+
+        updateTimer();
+
+
+        statusText.textContent =
+            message;
+
+
+        timerWindow.classList.remove(
+            "running"
+        );
+
+
+        console.log(
+            "SESSION ERROR:",
+            message
         );
 
     }
