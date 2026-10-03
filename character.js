@@ -205,30 +205,11 @@ characterVideo.addEventListener(
 
 
             // Change to thinking
+            // (No alert() here: it blocks this window, so the
+            // character would stop reacting until the app restarts.)
 
             playCharacter(
                 "thinking"
-            );
-
-
-            // =================================
-            // ASK WHAT NEXT
-            // =================================
-
-            setTimeout(
-                () => {
-
-                    console.log(
-                        "Showing What next?"
-                    );
-
-
-                    alert(
-                        "What next?"
-                    );
-
-                },
-                500
             );
 
         }
@@ -262,6 +243,99 @@ ipcRenderer.on(
 
     }
 );
+
+
+// ========================================
+// VIDEO QUESTION BUBBLE
+// ========================================
+
+const videoCheck =
+    document.getElementById(
+        "videoCheck"
+    );
+
+const videoCheckSubject =
+    document.getElementById(
+        "videoCheckSubject"
+    );
+
+const videoCheckTitle =
+    document.getElementById(
+        "videoCheckTitle"
+    );
+
+
+function hideVideoCheck() {
+
+    videoCheck.hidden =
+        true;
+
+    document.body.classList.remove(
+        "asking"
+    );
+
+}
+
+
+ipcRenderer.on(
+    "video-check",
+    (_event, video) => {
+
+        videoCheckSubject.textContent =
+            video.subject;
+
+        videoCheckTitle.textContent =
+            video.title;
+
+        videoCheck.hidden =
+            false;
+
+        document.body.classList.add(
+            "asking"
+        );
+
+    }
+);
+
+
+ipcRenderer.on(
+    "video-check-hide",
+    hideVideoCheck
+);
+
+
+document
+    .getElementById("videoCheckYes")
+    .addEventListener(
+        "click",
+        () => {
+
+            hideVideoCheck();
+
+            ipcRenderer.send(
+                "video-check-answer",
+                "study"
+            );
+
+        }
+    );
+
+
+document
+    .getElementById("videoCheckNo")
+    .addEventListener(
+        "click",
+        () => {
+
+            hideVideoCheck();
+
+            ipcRenderer.send(
+                "video-check-answer",
+                "distraction"
+            );
+
+        }
+    );
 
 
 // ========================================

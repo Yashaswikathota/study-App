@@ -54,12 +54,10 @@ function formatReportTime(seconds) {
 
 
 // =========================================================
-// RECEIVE SESSION REPORT
+// SHOW SESSION REPORT
 // =========================================================
 
-ipcRenderer.on(
-    "session-report",
-    (_event, session) => {
+function renderReport(session) {
 
         console.log(
             "================================"
@@ -137,8 +135,40 @@ ipcRenderer.on(
         focusScore.textContent =
             `${score}%`;
 
-    }
-);
+}
+
+
+// =========================================================
+// LOAD SESSION REPORT
+// =========================================================
+// Asked for once this script is running, so the data cannot
+// arrive before the page is ready to show it.
+
+ipcRenderer
+    .invoke("get-session-report")
+    .then((session) => {
+
+        if (session) {
+
+            renderReport(session);
+
+        } else {
+
+            console.error(
+                "No session data for this report window"
+            );
+
+        }
+
+    })
+    .catch((error) => {
+
+        console.error(
+            "FAILED TO LOAD SESSION REPORT:",
+            error
+        );
+
+    });
 
 
 // =========================================================
