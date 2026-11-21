@@ -2494,6 +2494,22 @@ app.whenReady().then(() => {
     );
 
 
+    // Ctrl+C in the terminal: quit normally so the open
+    // session is saved ("before-quit") instead of being cut off.
+    for (const signal of ["SIGINT", "SIGTERM"]) {
+
+        process.on(
+            signal,
+            () => {
+
+                app.quit();
+
+            }
+        );
+
+    }
+
+
     app.on(
         "activate",
         () => {
@@ -3503,6 +3519,84 @@ app.on(
             app.quit();
 
         }
+
+    }
+);
+
+
+// ========================================
+// SAVE OPEN SESSION ON QUIT
+// ========================================
+// Quitting mid-session (close button, Cmd+Q, Ctrl+C in the
+// terminal) used to leave the session open in the database
+// with no end time.
+
+const QUIT_SAVE_TIMEOUT_MS = 5000;
+
+let isQuitting = false;
+
+
+app.on(
+    "before-quit",
+    (event) => {
+
+        if (
+            isQuitting ||
+            !currentSession.startedAt
+        ) {
+
+            return;
+        }
+
+
+        // Hold the quit until the session is saved
+        event.preventDefault();
+
+        isQuitting =
+            true;
+
+        isStudySessionActive =
+            false;
+
+
+        console.log(
+            "APP QUITTING: SAVING OPEN STUDY SESSION"
+        );
+
+
+        // A stop already in progress is saving this session
+        const saving =
+            isStoppingSession
+                ? Promise.resolve()
+                : saveStudySession(false);
+
+
+        // Never keep the app open for long if the backend is down
+        const timeout =
+            new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        QUIT_SAVE_TIMEOUT_MS
+                    )
+            );
+
+
+        Promise
+            .race([saving, timeout])
+            .catch((error) => {
+
+                console.error(
+                    "FAILED TO SAVE SESSION ON QUIT:",
+                    error
+                );
+
+            })
+            .finally(() => {
+
+                app.quit();
+
+            });
 
     }
 );
